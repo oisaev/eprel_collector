@@ -1,0 +1,20 @@
+[tool.poetry]
+name = "eprel-scraper"
+version = "0.1.0"
+description = ""
+authors = ["Oleg Isaev <oleg.n.isaev@yandex.ru>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "~3.11"
+sqlalchemy = "^2.0.23"
+alembic = "^1.12.1"
+asyncpg = "^0.29.0"
+python-dotenv = "^1.0.0"
+pydantic-settings = "^2.1.0"
+aiohttp = "^3.9.1"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
