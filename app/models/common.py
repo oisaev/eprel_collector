@@ -17,6 +17,7 @@ class Common(Base):
     eprel_id = Column(Integer, nullable=False)
     scraping_start_datetime = Column(DateTime, nullable=False)
     eprel_category = Column(String(255), nullable=True)
+    eprel_manufacturer = Column(String(255), nullable=True)
     eprel_model_identifier = Column(String(32767), nullable=True)
     eprel_url_short = Column(URLType, nullable=False)
     eprel_url_long = Column(URLType, nullable=True)

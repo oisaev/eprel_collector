@@ -1,8 +1,8 @@
 """Common and 7 categories
 
-Revision ID: 8dc70da672b6
+Revision ID: 00c8ccf6c567
 Revises: 
-Create Date: 2023-12-08 12:50:51.741374
+Create Date: 2023-12-08 13:53:49.432649
 
 """
 from typing import Sequence, Union
@@ -13,7 +13,7 @@ import sqlalchemy_utils
 
 
 # revision identifiers, used by Alembic.
-revision: str = '8dc70da672b6'
+revision: str = '00c8ccf6c567'
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -25,6 +25,7 @@ def upgrade() -> None:
     sa.Column('eprel_id', sa.Integer(), nullable=False),
     sa.Column('scraping_start_datetime', sa.DateTime(), nullable=False),
     sa.Column('eprel_category', sa.String(length=255), nullable=True),
+    sa.Column('eprel_manufacturer', sa.String(length=255), nullable=True),
     sa.Column('eprel_model_identifier', sa.String(length=32767), nullable=True),
     sa.Column('eprel_url_short', sqlalchemy_utils.types.url.URLType(), nullable=False),
     sa.Column('eprel_url_long', sqlalchemy_utils.types.url.URLType(), nullable=True),

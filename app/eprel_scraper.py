@@ -1,10 +1,13 @@
 import asyncio
+import datetime
 import re
 
 import aiohttp
 
+from core.db import AsyncSessionLocal
 from core.logging import logger  # noqa
 from core.settings import settings
+import models
 
 
 def eprel_id_generator():
@@ -47,12 +50,45 @@ def value_json(find_in, attr_to_capture, called_key=''):
             return_value += get_internal_value(
                 called_key, list_item, attr_to_capture
             )
-    return return_value[:-3] if not return_value else ''
+    return return_value[:-3] if return_value else ''
 
 
-async def scrap_eprel_id(session, eprel_id, eprel_category):
+async def save_common_info(
+    scraping_start_datetime, eprel_id, eprel_category, api_json_dict
+):
+    info = models.Common()
+    info.eprel_id = eprel_id
+    info.scraping_start_datetime = scraping_start_datetime
+    info.eprel_category = eprel_category
+    info.eprel_manufacturer = value_json(
+        api_json_dict, 'supplierOrTrademark'
+    )
+    info.eprel_model_identifier = value_json(
+        api_json_dict, 'modelIdentifier'
+    )
+    info.eprel_url_short = settings.eprel_url_shart.format(eprel_id=eprel_id)
+    info.eprel_url_long = settings.eprel_url_long.format(
+        eprel_category=eprel_category, eprel_id=eprel_id
+    )
+    info.eprel_url_api = settings.eprel_url_api.format(
+        eprel_category=eprel_category, eprel_id=eprel_id
+    )
+    async with AsyncSessionLocal() as session:
+        session.add(info)
+        await session.commit()
+
+
+async def save_category_info(
+    scraping_start_datetime, eprel_id, eprel_category, api_json_dict
+):
+    pass
+
+
+async def scrap_eprel_id(
+    scraping_start_datetime, session, eprel_id, eprel_category
+):
     url_api = settings.eprel_url_api.format(
-        eprel_id=eprel_id, eprel_category=eprel_category
+        eprel_category=eprel_category, eprel_id=eprel_id
     )
     async with session.get(
         url=url_api,
@@ -60,11 +96,16 @@ async def scrap_eprel_id(session, eprel_id, eprel_category):
         timeout=settings.http_timeout,
     ) as response:
         api_json_dict = await response.json()
-        logger.info(f'{eprel_id=} {eprel_category=} has downloaded')
-        # print('\n\n', api_json_dict)
+    logger.info(f'{eprel_id=} {eprel_category=} has downloaded')
+    await save_common_info(
+        scraping_start_datetime, eprel_id, eprel_category, api_json_dict
+    )
+    await save_category_info(
+        scraping_start_datetime, eprel_id, eprel_category, api_json_dict
+    )
 
 
-async def gather_eprel(get_eprel_id):
+async def gather_eprel(scraping_start_datetime, get_eprel_id):
     for eprel_id in get_eprel_id:
         async with aiohttp.ClientSession() as session:
             eprel_category = await get_eprel_category(session, eprel_id)
@@ -77,14 +118,21 @@ async def gather_eprel(get_eprel_id):
             elif eprel_category not in settings.category_to_scrap:
                 pass
             else:
-                await scrap_eprel_id(session, eprel_id, eprel_category)
+                await scrap_eprel_id(
+                    scraping_start_datetime, session, eprel_id, eprel_category
+                )
 
 
 async def main():
+    scraping_start_datetime = datetime.datetime.now()
     get_eprel_id = eprel_id_generator()
     tasks = []
     for _ in range(settings.eprel_maximum_connections+1):
-        tasks.append(asyncio.create_task(gather_eprel(get_eprel_id)))
+        tasks.append(
+            asyncio.create_task(
+                gather_eprel(scraping_start_datetime, get_eprel_id)
+            )
+        )
     await asyncio.gather(*tasks)
 
 
