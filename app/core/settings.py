@@ -9,6 +9,8 @@ class Settings(BaseSettings):
     eprel_maximum_connections: int = 5
     eprel_id_min: int = 356460
     eprel_id_max: int = 1300000
+    http_timeout: int = 30
+    x_api_key: str = '3PR31D3F4ULTU1K3Y2020'
     eprel_url_shart: str = 'https://eprel.ec.europa.eu/qr/{eprel_id}'
     eprel_url_long: str = (
         'https://eprel.ec.europa.eu/screen/product/{eprel_category}/{eprel_id}'
