@@ -1,8 +1,8 @@
-"""First migration
+"""First mirgation
 
-Revision ID: 8253bba419dc
+Revision ID: c750220e9645
 Revises: 
-Create Date: 2023-12-08 16:04:07.568827
+Create Date: 2023-12-08 21:47:08.121405
 
 """
 from typing import Sequence, Union
@@ -13,7 +13,7 @@ import sqlalchemy_utils
 
 
 # revision identifiers, used by Alembic.
-revision: str = '8253bba419dc'
+revision: str = 'c750220e9645'
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -55,7 +55,7 @@ def upgrade() -> None:
     sa.Column('id', sa.Integer(), nullable=False),
     sa.PrimaryKeyConstraint('id')
     )
-    op.create_table('lognotreleazed',
+    op.create_table('lognotreleased',
     sa.Column('eprel_category', sa.String(length=255), nullable=True),
     sa.Column('eprel_id', sa.Integer(), nullable=False),
     sa.Column('scraping_start_datetime', sa.DateTime(), nullable=False),
@@ -189,7 +189,7 @@ def downgrade() -> None:
     op.drop_table('lightsources')
     op.drop_table('electronicdisplays')
     op.drop_table('dishwashers2019')
-    op.drop_table('lognotreleazed')
+    op.drop_table('lognotreleased')
     op.drop_table('lognotrecognized')
     op.drop_table('lognewcategory')
     op.drop_table('logexceptionalcategory')

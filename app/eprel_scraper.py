@@ -5,7 +5,7 @@ import re
 import aiohttp
 
 from core.db import AsyncSessionLocal
-from core.logging import logger  # noqa
+from core.logging import logger
 from core.settings import settings
 import models
 
@@ -17,14 +17,22 @@ def eprel_id_generator():
 
 async def get_eprel_category(session, eprel_id):
     url_short = settings.eprel_url_shart.format(eprel_id=eprel_id)
-    async with session.get(
-        url=url_short,
-        timeout=settings.http_timeout,
-    ) as response:
-        url_path = response.url.path.split('/')
-        if len(url_path) >= 2:
-            return response.url.path.split('/')[-2]
-        return None
+    attempts = 0
+    while attempts < settings.re_read_attempts:
+        try:
+            async with session.get(
+                url=url_short,
+                timeout=settings.http_timeout,
+            ) as response:
+                response_url = response.url
+                url_path = response_url.path.split('/')
+                if response_url != url_short and len(url_path) >= 2:
+                    return url_path[-2]
+        except Exception:
+            pass
+        attempts += 1
+        await asyncio.sleep(settings.pause_between_attempts)
+    return None
 
 
 def get_internal_value(key, value, attr_to_capture):
@@ -98,19 +106,36 @@ async def scrap_eprel_id(
     url_api = settings.eprel_url_api.format(
         eprel_category=eprel_category, eprel_id=eprel_id
     )
-    async with session.get(
-        url=url_api,
-        headers={'x-api-key': settings.x_api_key},
-        timeout=settings.http_timeout,
-    ) as response:
-        api_json_dict = await response.json()
-    await save_common_info(
-        scraping_start_datetime, eprel_id, eprel_category, api_json_dict
-    )
-    await save_category_info(
-        scraping_start_datetime, eprel_id, eprel_category, api_json_dict
-    )
-    logger.info(f'{eprel_id=} {eprel_category=} has downloaded and processed')
+    attempts = 0
+    while attempts < settings.re_read_attempts:
+        try:
+            async with session.get(
+                url=url_api,
+                headers={'x-api-key': settings.x_api_key},
+                timeout=settings.http_timeout,
+            ) as response:
+                api_json_dict = await response.json()
+            if api_json_dict:
+                await save_common_info(
+                    scraping_start_datetime,
+                    eprel_id,
+                    eprel_category,
+                    api_json_dict
+                )
+                await save_category_info(
+                    scraping_start_datetime,
+                    eprel_id,
+                    eprel_category,
+                    api_json_dict
+                )
+                logger.info(
+                    f'{eprel_id=} {eprel_category=} '
+                    f'has downloaded and processed'
+                )
+        except Exception:
+            pass
+        attempts += 1
+        await asyncio.sleep(settings.pause_between_attempts)
 
 
 async def log_db_save(
@@ -174,6 +199,10 @@ async def gather_eprel(scraping_start_datetime, get_eprel_id):
 
 
 async def main():
+    '''
+    Запуск сбора информации через заданное
+    максимальное количество соединений.
+    '''
     scraping_start_datetime = datetime.datetime.now()
     get_eprel_id = eprel_id_generator()
     tasks = []
@@ -187,4 +216,6 @@ async def main():
 
 
 if __name__ == '__main__':
+    logger.info('Program is started')
     asyncio.run(main())
+    logger.info('Program is finished')

@@ -6,9 +6,12 @@ load_dotenv()
 
 class Settings(BaseSettings):
     database_url: str
+    logging_dir: str = 'logs'
     eprel_maximum_connections: int = 100
     eprel_id_min: int = 0
     eprel_id_max: int = 2000000
+    re_read_attempts: int = 5
+    pause_between_attempts: int = 4
     http_timeout: int = 30
     x_api_key: str = '3PR31D3F4ULTU1K3Y2020'
     eprel_url_shart: str = 'https://eprel.ec.europa.eu/qr/{eprel_id}'
