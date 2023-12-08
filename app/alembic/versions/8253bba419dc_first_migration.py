@@ -1,8 +1,8 @@
-"""Common and 7 categories
+"""First migration
 
-Revision ID: 00c8ccf6c567
+Revision ID: 8253bba419dc
 Revises: 
-Create Date: 2023-12-08 13:53:49.432649
+Create Date: 2023-12-08 16:04:07.568827
 
 """
 from typing import Sequence, Union
@@ -13,7 +13,7 @@ import sqlalchemy_utils
 
 
 # revision identifiers, used by Alembic.
-revision: str = '00c8ccf6c567'
+revision: str = '8253bba419dc'
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -33,6 +33,34 @@ def upgrade() -> None:
     sa.Column('id', sa.Integer(), nullable=False),
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('eprel_id', 'scraping_start_datetime', name='unique_eprel_id_scraping_start_datetime')
+    )
+    op.create_table('logexceptionalcategory',
+    sa.Column('eprel_category', sa.String(length=255), nullable=True),
+    sa.Column('eprel_id', sa.Integer(), nullable=False),
+    sa.Column('scraping_start_datetime', sa.DateTime(), nullable=False),
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.PrimaryKeyConstraint('id')
+    )
+    op.create_table('lognewcategory',
+    sa.Column('eprel_category', sa.String(length=255), nullable=True),
+    sa.Column('eprel_id', sa.Integer(), nullable=False),
+    sa.Column('scraping_start_datetime', sa.DateTime(), nullable=False),
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.PrimaryKeyConstraint('id')
+    )
+    op.create_table('lognotrecognized',
+    sa.Column('eprel_category', sa.String(length=255), nullable=True),
+    sa.Column('eprel_id', sa.Integer(), nullable=False),
+    sa.Column('scraping_start_datetime', sa.DateTime(), nullable=False),
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.PrimaryKeyConstraint('id')
+    )
+    op.create_table('lognotreleazed',
+    sa.Column('eprel_category', sa.String(length=255), nullable=True),
+    sa.Column('eprel_id', sa.Integer(), nullable=False),
+    sa.Column('scraping_start_datetime', sa.DateTime(), nullable=False),
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.PrimaryKeyConstraint('id')
     )
     op.create_table('dishwashers2019',
     sa.Column('energyClass', sa.String(length=32767), nullable=True),
@@ -161,5 +189,9 @@ def downgrade() -> None:
     op.drop_table('lightsources')
     op.drop_table('electronicdisplays')
     op.drop_table('dishwashers2019')
+    op.drop_table('lognotreleazed')
+    op.drop_table('lognotrecognized')
+    op.drop_table('lognewcategory')
+    op.drop_table('logexceptionalcategory')
     op.drop_table('common')
     # ### end Alembic commands ###

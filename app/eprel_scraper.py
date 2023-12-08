@@ -104,13 +104,25 @@ async def scrap_eprel_id(
         timeout=settings.http_timeout,
     ) as response:
         api_json_dict = await response.json()
-    logger.info(f'{eprel_id=} {eprel_category=} has downloaded')
     await save_common_info(
         scraping_start_datetime, eprel_id, eprel_category, api_json_dict
     )
     await save_category_info(
         scraping_start_datetime, eprel_id, eprel_category, api_json_dict
     )
+    logger.info(f'{eprel_id=} {eprel_category=} has downloaded and processed')
+
+
+async def log_db_save(
+    scraping_start_datetime, eprel_id, eprel_category, LogModel
+):
+    log = LogModel()
+    log.eprel_id = eprel_id
+    log.scraping_start_datetime = scraping_start_datetime
+    log.eprel_category = eprel_category
+    async with AsyncSessionLocal() as session:
+        session.add(log)
+        await session.commit()
 
 
 async def gather_eprel(scraping_start_datetime, get_eprel_id):
@@ -118,13 +130,43 @@ async def gather_eprel(scraping_start_datetime, get_eprel_id):
         async with aiohttp.ClientSession() as session:
             eprel_category = await get_eprel_category(session, eprel_id)
             if not eprel_category:
-                pass
+                await log_db_save(
+                    scraping_start_datetime,
+                    eprel_id,
+                    'not_recognized',
+                    models.LogNotRecognized
+                )
+                logger.warning(f'{eprel_id=} category is not found')
             elif eprel_category in settings.category_exceptional:
-                pass
+                await log_db_save(
+                    scraping_start_datetime,
+                    eprel_id,
+                    eprel_category,
+                    models.LogExceptionalCategory
+                )
+                logger.info(
+                    f'{eprel_id=} {eprel_category=} is '
+                    f'an exceptional one'
+                )
             elif eprel_category == settings.category_error:
-                pass
+                await log_db_save(
+                    scraping_start_datetime,
+                    eprel_id,
+                    'not_released',
+                    models.LogNotReleased
+                )
+                logger.info(f'{eprel_id=} is not released yet')
             elif eprel_category not in settings.category_to_scrap:
-                pass
+                await log_db_save(
+                    scraping_start_datetime,
+                    eprel_id,
+                    eprel_category,
+                    models.LogNewCategory
+                )
+                logger.info(
+                    f'{eprel_id=} {eprel_category=} '
+                    f'new category found. Add it to configs and/or model'
+                )
             else:
                 await scrap_eprel_id(
                     scraping_start_datetime, session, eprel_id, eprel_category

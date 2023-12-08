@@ -1,9 +1,9 @@
 from sqlalchemy import Column, ForeignKeyConstraint, String
 
-from .cat_base import CategoryBase
+from .models_base import IdTimeBase
 
 
-class Lightsources(CategoryBase):
+class Lightsources(IdTimeBase):
     '''Модель категории lightsources.'''
     __table_args__ = (
         ForeignKeyConstraint(
