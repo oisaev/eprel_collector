@@ -7,7 +7,7 @@ load_dotenv()
 class Settings(BaseSettings):
     database_url: str
     eprel_maximum_connections: int = 5
-    eprel_id_min: int = 356460
+    eprel_id_min: int = 767481
     eprel_id_max: int = 1300000
     http_timeout: int = 30
     x_api_key: str = '3PR31D3F4ULTU1K3Y2020'
@@ -18,6 +18,8 @@ class Settings(BaseSettings):
     eprel_url_api: str = (
         'https://eprel.ec.europa.eu/api/products/{eprel_category}/{eprel_id}'
     )
+    eprel_manufacturer_attr: str = 'supplierOrTrademark'
+    eprel_model_identifier_attr: str = 'modelIdentifier'
     category_error: str = 'error'
     category_exceptional: tuple = (
         'airconditioners',

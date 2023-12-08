@@ -61,10 +61,10 @@ async def save_common_info(
     info.scraping_start_datetime = scraping_start_datetime
     info.eprel_category = eprel_category
     info.eprel_manufacturer = value_json(
-        api_json_dict, 'supplierOrTrademark'
+        api_json_dict, settings.eprel_manufacturer_attr
     )
     info.eprel_model_identifier = value_json(
-        api_json_dict, 'modelIdentifier'
+        api_json_dict, settings.eprel_model_identifier_attr
     )
     info.eprel_url_short = settings.eprel_url_shart.format(eprel_id=eprel_id)
     info.eprel_url_long = settings.eprel_url_long.format(
@@ -81,7 +81,15 @@ async def save_common_info(
 async def save_category_info(
     scraping_start_datetime, eprel_id, eprel_category, api_json_dict
 ):
-    pass
+    info = eval(f'models.{eprel_category.capitalize()}()')
+    info.eprel_id = eprel_id
+    info.scraping_start_datetime = scraping_start_datetime
+    attrs = settings.category_to_scrap[eprel_category]
+    for attr in attrs:
+        setattr(info, attr, value_json(api_json_dict, attr))
+    async with AsyncSessionLocal() as session:
+        session.add(info)
+        await session.commit()
 
 
 async def scrap_eprel_id(
