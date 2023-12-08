@@ -68,6 +68,7 @@ async def save_common_info(
     info.eprel_id = eprel_id
     info.scraping_start_datetime = scraping_start_datetime
     info.eprel_category = eprel_category
+    info.eprel_category_status = 'parsing'
     info.eprel_manufacturer = value_json(
         api_json_dict, settings.eprel_manufacturer_attr
     )
@@ -86,12 +87,9 @@ async def save_common_info(
         await session.commit()
 
 
-async def save_category_info(
-    scraping_start_datetime, eprel_id, eprel_category, api_json_dict
-):
+async def save_category_info(eprel_id, eprel_category, api_json_dict):
     info = eval(f'models.{eprel_category.capitalize()}()')
     info.eprel_id = eprel_id
-    info.scraping_start_datetime = scraping_start_datetime
     attrs = settings.category_to_scrap[eprel_category]
     for attr in attrs:
         setattr(info, attr, value_json(api_json_dict, attr))
@@ -123,7 +121,6 @@ async def scrap_eprel_id(
                     api_json_dict
                 )
                 await save_category_info(
-                    scraping_start_datetime,
                     eprel_id,
                     eprel_category,
                     api_json_dict
@@ -138,13 +135,15 @@ async def scrap_eprel_id(
         await asyncio.sleep(settings.pause_between_attempts)
 
 
-async def log_db_save(
-    scraping_start_datetime, eprel_id, eprel_category, LogModel
+async def log_save(
+    scraping_start_datetime, eprel_id, eprel_category, eprel_category_status
 ):
-    log = LogModel()
+    log = models.Common()
     log.eprel_id = eprel_id
     log.scraping_start_datetime = scraping_start_datetime
     log.eprel_category = eprel_category
+    log.eprel_category_status = eprel_category_status
+    log.eprel_url_short = settings.eprel_url_shart.format(eprel_id=eprel_id)
     async with AsyncSessionLocal() as session:
         session.add(log)
         await session.commit()
@@ -155,38 +154,38 @@ async def gather_eprel(scraping_start_datetime, get_eprel_id):
         async with aiohttp.ClientSession() as session:
             eprel_category = await get_eprel_category(session, eprel_id)
             if not eprel_category:
-                await log_db_save(
-                    scraping_start_datetime,
-                    eprel_id,
-                    'not_recognized',
-                    models.LogNotRecognized
-                )
-                logger.warning(f'{eprel_id=} category is not found')
-            elif eprel_category in settings.category_exceptional:
-                await log_db_save(
+                await log_save(
                     scraping_start_datetime,
                     eprel_id,
                     eprel_category,
-                    models.LogExceptionalCategory
+                    'broken'
+                )
+                logger.warning(f'{eprel_id=} category is not found')
+            elif eprel_category in settings.category_exceptional:
+                await log_save(
+                    scraping_start_datetime,
+                    eprel_id,
+                    eprel_category,
+                    'exception'
                 )
                 logger.info(
                     f'{eprel_id=} {eprel_category=} is '
                     f'an exceptional one'
                 )
-            elif eprel_category == settings.category_error:
-                await log_db_save(
+            elif eprel_category == settings.category_not_released:
+                await log_save(
                     scraping_start_datetime,
                     eprel_id,
-                    'not_released',
-                    models.LogNotReleased
+                    None,
+                    'not_released'
                 )
                 logger.info(f'{eprel_id=} is not released yet')
             elif eprel_category not in settings.category_to_scrap:
-                await log_db_save(
+                await log_save(
                     scraping_start_datetime,
                     eprel_id,
                     eprel_category,
-                    models.LogNewCategory
+                    'new'
                 )
                 logger.info(
                     f'{eprel_id=} {eprel_category=} '
@@ -198,12 +197,18 @@ async def gather_eprel(scraping_start_datetime, get_eprel_id):
                 )
 
 
+async def get_id_list():
+    pass
+
+
 async def main():
     '''
     Запуск сбора информации через заданное
     максимальное количество соединений.
     '''
     scraping_start_datetime = datetime.datetime.now()
+    id_list = await get_id_list()
+    return None
     get_eprel_id = eprel_id_generator()
     tasks = []
     for _ in range(settings.eprel_maximum_connections+1):

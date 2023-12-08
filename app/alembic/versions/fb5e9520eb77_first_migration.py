@@ -1,8 +1,8 @@
-"""First mirgation
+"""First migration
 
-Revision ID: c750220e9645
+Revision ID: fb5e9520eb77
 Revises: 
-Create Date: 2023-12-08 21:47:08.121405
+Create Date: 2023-12-08 23:43:13.242522
 
 """
 from typing import Sequence, Union
@@ -11,9 +11,11 @@ from alembic import op
 import sqlalchemy as sa
 import sqlalchemy_utils
 
+from models.products_common_info import CATEGORY_STATUSES
+
 
 # revision identifiers, used by Alembic.
-revision: str = 'c750220e9645'
+revision: str = 'fb5e9520eb77'
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -25,6 +27,7 @@ def upgrade() -> None:
     sa.Column('eprel_id', sa.Integer(), nullable=False),
     sa.Column('scraping_start_datetime', sa.DateTime(), nullable=False),
     sa.Column('eprel_category', sa.String(length=255), nullable=True),
+    sa.Column('eprel_category_status', sqlalchemy_utils.types.choice.ChoiceType(CATEGORY_STATUSES), nullable=False),
     sa.Column('eprel_manufacturer', sa.String(length=255), nullable=True),
     sa.Column('eprel_model_identifier', sa.String(length=32767), nullable=True),
     sa.Column('eprel_url_short', sqlalchemy_utils.types.url.URLType(), nullable=False),
@@ -32,35 +35,7 @@ def upgrade() -> None:
     sa.Column('eprel_url_api', sqlalchemy_utils.types.url.URLType(), nullable=True),
     sa.Column('id', sa.Integer(), nullable=False),
     sa.PrimaryKeyConstraint('id'),
-    sa.UniqueConstraint('eprel_id', 'scraping_start_datetime', name='unique_eprel_id_scraping_start_datetime')
-    )
-    op.create_table('logexceptionalcategory',
-    sa.Column('eprel_category', sa.String(length=255), nullable=True),
-    sa.Column('eprel_id', sa.Integer(), nullable=False),
-    sa.Column('scraping_start_datetime', sa.DateTime(), nullable=False),
-    sa.Column('id', sa.Integer(), nullable=False),
-    sa.PrimaryKeyConstraint('id')
-    )
-    op.create_table('lognewcategory',
-    sa.Column('eprel_category', sa.String(length=255), nullable=True),
-    sa.Column('eprel_id', sa.Integer(), nullable=False),
-    sa.Column('scraping_start_datetime', sa.DateTime(), nullable=False),
-    sa.Column('id', sa.Integer(), nullable=False),
-    sa.PrimaryKeyConstraint('id')
-    )
-    op.create_table('lognotrecognized',
-    sa.Column('eprel_category', sa.String(length=255), nullable=True),
-    sa.Column('eprel_id', sa.Integer(), nullable=False),
-    sa.Column('scraping_start_datetime', sa.DateTime(), nullable=False),
-    sa.Column('id', sa.Integer(), nullable=False),
-    sa.PrimaryKeyConstraint('id')
-    )
-    op.create_table('lognotreleased',
-    sa.Column('eprel_category', sa.String(length=255), nullable=True),
-    sa.Column('eprel_id', sa.Integer(), nullable=False),
-    sa.Column('scraping_start_datetime', sa.DateTime(), nullable=False),
-    sa.Column('id', sa.Integer(), nullable=False),
-    sa.PrimaryKeyConstraint('id')
+    sa.UniqueConstraint('eprel_id', name='unique_eprel_id')
     )
     op.create_table('dishwashers2019',
     sa.Column('energyClass', sa.String(length=32767), nullable=True),
@@ -71,9 +46,8 @@ def upgrade() -> None:
     sa.Column('noise', sa.String(length=32767), nullable=True),
     sa.Column('noiseClass', sa.String(length=32767), nullable=True),
     sa.Column('eprel_id', sa.Integer(), nullable=False),
-    sa.Column('scraping_start_datetime', sa.DateTime(), nullable=False),
     sa.Column('id', sa.Integer(), nullable=False),
-    sa.ForeignKeyConstraint(['eprel_id', 'scraping_start_datetime'], ['common.eprel_id', 'common.scraping_start_datetime'], ),
+    sa.ForeignKeyConstraint(['eprel_id'], ['common.eprel_id'], ),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_table('electronicdisplays',
@@ -87,9 +61,8 @@ def upgrade() -> None:
     sa.Column('diagonalInch', sa.String(length=32767), nullable=True),
     sa.Column('panelTechnology', sa.String(length=32767), nullable=True),
     sa.Column('eprel_id', sa.Integer(), nullable=False),
-    sa.Column('scraping_start_datetime', sa.DateTime(), nullable=False),
     sa.Column('id', sa.Integer(), nullable=False),
-    sa.ForeignKeyConstraint(['eprel_id', 'scraping_start_datetime'], ['common.eprel_id', 'common.scraping_start_datetime'], ),
+    sa.ForeignKeyConstraint(['eprel_id'], ['common.eprel_id'], ),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_table('lightsources',
@@ -97,9 +70,8 @@ def upgrade() -> None:
     sa.Column('powerOnMode', sa.String(length=32767), nullable=True),
     sa.Column('energyConsOnMode', sa.String(length=32767), nullable=True),
     sa.Column('eprel_id', sa.Integer(), nullable=False),
-    sa.Column('scraping_start_datetime', sa.DateTime(), nullable=False),
     sa.Column('id', sa.Integer(), nullable=False),
-    sa.ForeignKeyConstraint(['eprel_id', 'scraping_start_datetime'], ['common.eprel_id', 'common.scraping_start_datetime'], ),
+    sa.ForeignKeyConstraint(['eprel_id'], ['common.eprel_id'], ),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_table('refrigeratingappliances2019',
@@ -113,9 +85,8 @@ def upgrade() -> None:
     sa.Column('noiseClass', sa.String(length=32767), nullable=True),
     sa.Column('totalVolume', sa.String(length=32767), nullable=True),
     sa.Column('eprel_id', sa.Integer(), nullable=False),
-    sa.Column('scraping_start_datetime', sa.DateTime(), nullable=False),
     sa.Column('id', sa.Integer(), nullable=False),
-    sa.ForeignKeyConstraint(['eprel_id', 'scraping_start_datetime'], ['common.eprel_id', 'common.scraping_start_datetime'], ),
+    sa.ForeignKeyConstraint(['eprel_id'], ['common.eprel_id'], ),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_table('tyres',
@@ -136,9 +107,8 @@ def upgrade() -> None:
     sa.Column('severeSnowTyre', sa.String(length=32767), nullable=True),
     sa.Column('iceTyre', sa.String(length=32767), nullable=True),
     sa.Column('eprel_id', sa.Integer(), nullable=False),
-    sa.Column('scraping_start_datetime', sa.DateTime(), nullable=False),
     sa.Column('id', sa.Integer(), nullable=False),
-    sa.ForeignKeyConstraint(['eprel_id', 'scraping_start_datetime'], ['common.eprel_id', 'common.scraping_start_datetime'], ),
+    sa.ForeignKeyConstraint(['eprel_id'], ['common.eprel_id'], ),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_table('washerdriers2019',
@@ -156,9 +126,8 @@ def upgrade() -> None:
     sa.Column('noise', sa.String(length=32767), nullable=True),
     sa.Column('noiseClass', sa.String(length=32767), nullable=True),
     sa.Column('eprel_id', sa.Integer(), nullable=False),
-    sa.Column('scraping_start_datetime', sa.DateTime(), nullable=False),
     sa.Column('id', sa.Integer(), nullable=False),
-    sa.ForeignKeyConstraint(['eprel_id', 'scraping_start_datetime'], ['common.eprel_id', 'common.scraping_start_datetime'], ),
+    sa.ForeignKeyConstraint(['eprel_id'], ['common.eprel_id'], ),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_table('washingmachines2019',
@@ -172,9 +141,8 @@ def upgrade() -> None:
     sa.Column('noise', sa.String(length=32767), nullable=True),
     sa.Column('noiseClass', sa.String(length=32767), nullable=True),
     sa.Column('eprel_id', sa.Integer(), nullable=False),
-    sa.Column('scraping_start_datetime', sa.DateTime(), nullable=False),
     sa.Column('id', sa.Integer(), nullable=False),
-    sa.ForeignKeyConstraint(['eprel_id', 'scraping_start_datetime'], ['common.eprel_id', 'common.scraping_start_datetime'], ),
+    sa.ForeignKeyConstraint(['eprel_id'], ['common.eprel_id'], ),
     sa.PrimaryKeyConstraint('id')
     )
     # ### end Alembic commands ###
@@ -189,9 +157,5 @@ def downgrade() -> None:
     op.drop_table('lightsources')
     op.drop_table('electronicdisplays')
     op.drop_table('dishwashers2019')
-    op.drop_table('lognotreleased')
-    op.drop_table('lognotrecognized')
-    op.drop_table('lognewcategory')
-    op.drop_table('logexceptionalcategory')
     op.drop_table('common')
     # ### end Alembic commands ###

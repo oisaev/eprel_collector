@@ -1,18 +1,10 @@
-from sqlalchemy import Column, DateTime, Integer, String
+from sqlalchemy import Column, Integer
 
 from core.db import Base
 
 
-class IdTimeBase(Base):
-    '''Базовая модель c eprel_id и scraping_start_datetime.'''
+class EprelIdBase(Base):
+    '''Базовая модель c eprel_id.'''
     __abstract__ = True
 
     eprel_id = Column(Integer, nullable=False)
-    scraping_start_datetime = Column(DateTime, nullable=False)
-
-
-class ListModelBase(IdTimeBase):
-    '''Базовая модель для списков продуктов с категорией.'''
-    __abstract__ = True
-
-    eprel_category = Column(String(255), nullable=True)

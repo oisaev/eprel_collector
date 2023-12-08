@@ -8,8 +8,8 @@ class Settings(BaseSettings):
     database_url: str
     logging_dir: str = 'logs'
     eprel_maximum_connections: int = 100
-    eprel_id_min: int = 0
-    eprel_id_max: int = 2000000
+    eprel_id_min: int = 600_000
+    eprel_id_max: int = 2_000_000
     re_read_attempts: int = 5
     pause_between_attempts: int = 4
     http_timeout: int = 30
@@ -23,7 +23,7 @@ class Settings(BaseSettings):
     )
     eprel_manufacturer_attr: str = 'supplierOrTrademark'
     eprel_model_identifier_attr: str = 'modelIdentifier'
-    category_error: str = 'error'
+    category_not_released: str = 'error'
     category_exceptional: tuple = (
         'airconditioners',
         'dishwashers',
