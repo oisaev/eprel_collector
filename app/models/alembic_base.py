@@ -1,3 +1,4 @@
+'''Импорты моделей для видимости Alembic'ом'''
 from core.db import Base  # noqa
 from models.products_by_category import (  # noqa
     Dishwashers2019,
@@ -9,3 +10,4 @@ from models.products_by_category import (  # noqa
     Washingmachines2019,
 )
 from models.products_common_info import Common  # noqa
+from models.value_change_log import ValueChangeLog  # noqa

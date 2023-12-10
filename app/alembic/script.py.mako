@@ -7,9 +7,11 @@ Create Date: ${create_date}
 """
 from typing import Sequence, Union
 
-from alembic import op
 import sqlalchemy as sa
 import sqlalchemy_utils
+from alembic import op
+
+from models.products_common_info import categoty_status_list
 ${imports if imports else ""}
 
 # revision identifiers, used by Alembic.

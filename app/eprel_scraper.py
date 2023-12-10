@@ -7,12 +7,17 @@ import models
 from core.db import AsyncSessionLocal
 from core.logging import logger
 from core.settings import settings
-from utils.db import get_already_collected, get_item_by_eprel_id_db_model
+from utils.arg_parser import command_line_args
+from utils.db import (
+    get_already_collected,
+    get_item_by_eprel_id_db_model,
+    save_value_change_log,
+)
 from utils.value_from_json import value_json
 
 
 def eprel_id_generator(eprel_ids):
-    '''Генератор eprel_id.'''
+    '''Генератор eprel_id для сбора.'''
     for eprel_id in eprel_ids:
         yield eprel_id
 
@@ -32,7 +37,10 @@ async def get_eprel_category(session, eprel_id):
                 if response_url != url_short and len(url_path) >= 2:
                     return url_path[-2]
         except Exception:
-            pass
+            logger.exception(
+                f'{eprel_id=}, attempt {attempts+1}. '
+                f'Failed to convert url_short->url_long'
+            )
         attempts += 1
         await asyncio.sleep(settings.pause_between_attempts)
 
@@ -41,8 +49,10 @@ async def save_items(
     eprel_id, eprel_category, api_json_dict, common_item, attrs_item
 ):
     '''Запись информации о продукте в БД.'''
+    previous_scraping_datetime = common_item.scraping_datetime
+    current_scraping_datetime = datetime.now()
     common_item.eprel_id = eprel_id
-    common_item.scraping_datetime = datetime.now()
+    common_item.scraping_datetime = current_scraping_datetime
     common_item.eprel_category = eprel_category
     common_item.eprel_category_status = 'parsing'
     common_item.eprel_manufacturer = value_json(
@@ -61,13 +71,26 @@ async def save_items(
         eprel_category=eprel_category, eprel_id=eprel_id
     )
 
-    attrs_item.eprel_id = eprel_id
     attrs = settings.category_to_scrap[eprel_category]
-    for attr in attrs:
-        setattr(attrs_item, attr, value_json(api_json_dict, attr))
+    for attribute_name in attrs:
+        previous_value = eval(f'attrs_item.{attribute_name}')
+        current_value = value_json(api_json_dict, attribute_name)
+        if attrs_item.eprel_id and previous_value != current_value:
+            await save_value_change_log(
+                eprel_id,
+                eprel_category,
+                attribute_name,
+                previous_scraping_datetime,
+                previous_value,
+                current_scraping_datetime,
+                current_value
+            )
+        setattr(attrs_item, attribute_name, current_value)
+    attrs_item.eprel_id = eprel_id
 
     async with AsyncSessionLocal() as session:
         session.add(common_item)
+        await session.commit()
         session.add(attrs_item)
         await session.commit()
 
@@ -90,7 +113,10 @@ async def scrap_eprel_id_with_attrs(
             ) as response:
                 api_json_dict = await response.json()
         except Exception:
-            pass
+            logger.exception(
+                f'{eprel_id=}, attempt {attempts+1}. '
+                f'Failed to get API response'
+            )
         attempts += 1
         await asyncio.sleep(settings.pause_between_attempts)
     if api_json_dict:
@@ -184,9 +210,16 @@ async def gather_eprel(get_eprel_id):
 async def get_eprel_ids():
     '''Создание списка продуктов, которые будут собраны.'''
     eprel_ids = set(range(settings.eprel_id_min, settings.eprel_id_max+1))
-    already_collected = await get_already_collected()
-    eprel_ids = eprel_ids.difference(already_collected)
-    return eprel_ids
+    already_collected = set()
+    if not command_line_args.mode or command_line_args.mode == 'remaining':
+        already_collected = await get_already_collected(
+            ('parsing', 'exception', 'not_released')
+        )
+    elif command_line_args.mode == 'not_collected':
+        already_collected = await get_already_collected(
+            ('parsing', 'exception')
+        )
+    return eprel_ids.difference(already_collected)
 
 
 async def main():
@@ -194,8 +227,9 @@ async def main():
     Запуск сбора информации через заданное
     максимальное количество соединений.
     '''
+    logger.info(f"Working in '{command_line_args.mode or 'remaining'}' mode")
     eprel_ids = await get_eprel_ids()
-    print(len(eprel_ids))
+    logger.info(f'Will be collected {len(eprel_ids)} products')
     get_eprel_id = eprel_id_generator(eprel_ids)
     tasks = []
     for _ in range(settings.eprel_maximum_connections+1):

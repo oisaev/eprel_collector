@@ -8,3 +8,4 @@ from .products_by_category import (  # noqa
     Washingmachines2019,
 )
 from .products_common_info import Common  # noqa
+from .value_change_log import ValueChangeLog  # noqa
