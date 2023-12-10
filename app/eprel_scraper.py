@@ -3,12 +3,12 @@ import re
 from datetime import datetime
 
 import aiohttp
-from sqlalchemy import select
 
 import models
 from core.db import AsyncSessionLocal
 from core.logging import logger
 from core.settings import settings
+from utils.db import get_item_by_eprel_id_db_model
 
 
 def eprel_id_generator(eprel_ids):
@@ -62,8 +62,8 @@ def value_json(find_in, attr_to_capture, called_key=''):
     return return_value[:-3] if return_value else ''
 
 
-async def save_common_info(
-    common_item, eprel_id, eprel_category, api_json_dict
+async def save_items(
+    eprel_id, eprel_category, api_json_dict, common_item, attrs_item
 ):
     common_item.eprel_id = eprel_id
     common_item.scraping_datetime = datetime.now()
@@ -84,52 +84,16 @@ async def save_common_info(
     common_item.eprel_url_api = settings.eprel_url_api.format(
         eprel_category=eprel_category, eprel_id=eprel_id
     )
-    async with AsyncSessionLocal() as session:
-        session.add(common_item)
-        await session.commit()
 
-
-async def save_attrs_info(attrs_item, eprel_id, eprel_category, api_json_dict):
     attrs_item.eprel_id = eprel_id
     attrs = settings.category_to_scrap[eprel_category]
     for attr in attrs:
         setattr(attrs_item, attr, value_json(api_json_dict, attr))
+
     async with AsyncSessionLocal() as session:
+        session.add(common_item)
         session.add(attrs_item)
         await session.commit()
-
-
-async def load_item(eprel_id, eprel_category):
-    common_model = models.Common
-    attrs_model = eval(f'models.{eprel_category.capitalize()}')
-    async with AsyncSessionLocal() as session:
-        common_item = await session.execute(
-            select(
-                common_model
-            ).select_from(
-                common_model
-            ).where(
-                common_model.eprel_id == eprel_id
-            )
-        )
-        attrs_item = await session.execute(
-            select(
-                attrs_model
-            ).select_from(
-                attrs_model
-            ).where(
-                attrs_model.eprel_id == eprel_id
-            )
-        )
-    common_item = common_item.first()
-    common_item = common_item[0] if common_item else None
-    attrs_item = attrs_item.first()
-    attrs_item = attrs_item[0] if attrs_item else None
-    if not common_item:
-        common_item = common_model()
-    if not attrs_item:
-        attrs_item = attrs_model()
-    return common_item, attrs_item
 
 
 async def scrap_eprel_id(
@@ -148,20 +112,19 @@ async def scrap_eprel_id(
             ) as response:
                 api_json_dict = await response.json()
             if api_json_dict:
-                common_item, attrs_item = await load_item(
-                    eprel_id, eprel_category
+                common_item = await get_item_by_eprel_id_db_model(
+                    eprel_id, models.Common
                 )
-                await save_common_info(
+                attrs_item = await get_item_by_eprel_id_db_model(
+                    eprel_id,
+                    eval(f'models.{eprel_category.capitalize()}')
+                )
+                await save_items(
+                    eprel_id,
+                    eprel_category,
+                    api_json_dict,
                     common_item,
-                    eprel_id,
-                    eprel_category,
-                    api_json_dict
-                )
-                await save_attrs_info(
-                    attrs_item,
-                    eprel_id,
-                    eprel_category,
-                    api_json_dict
+                    attrs_item
                 )
                 logger.info(
                     f'{eprel_id=} {eprel_category=} '
@@ -169,7 +132,6 @@ async def scrap_eprel_id(
                 )
                 return
         except Exception:
-            print('err')
             pass
         attempts += 1
         await asyncio.sleep(settings.pause_between_attempts)
@@ -179,14 +141,16 @@ async def log_save(
     eprel_id, eprel_category, eprel_category_status
 ):
     '''Если не собираем атрибуты - просто записываем продукт в лог.'''
-    log = models.Common()
-    log.eprel_id = eprel_id
-    log.scraping_datetime = datetime.now()
-    log.eprel_category = eprel_category
-    log.eprel_category_status = eprel_category_status
-    log.eprel_url_short = settings.eprel_url_shart.format(eprel_id=eprel_id)
+    common_item = await get_item_by_eprel_id_db_model(eprel_id, models.Common)
+    common_item.eprel_id = eprel_id
+    common_item.scraping_datetime = datetime.now()
+    common_item.eprel_category = eprel_category
+    common_item.eprel_category_status = eprel_category_status
+    common_item.eprel_url_short = settings.eprel_url_shart.format(
+        eprel_id=eprel_id
+    )
     async with AsyncSessionLocal() as session:
-        session.add(log)
+        session.add(common_item)
         await session.commit()
 
 

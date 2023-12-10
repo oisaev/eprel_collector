@@ -23,7 +23,7 @@ requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.isort]
-known_local_folder = ["core", "models"]
+known_local_folder = ["core", "models", "utils"]
 lines_after_imports = 2
 line_length = 79
 multi_line_output = 3

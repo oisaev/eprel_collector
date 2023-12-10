@@ -2,4 +2,4 @@
 
 Запуск программы:
 
-python app/eprel_scraper
+python app/eprel_scraper.py
