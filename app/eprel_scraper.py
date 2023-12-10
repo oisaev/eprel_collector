@@ -1,5 +1,4 @@
 import asyncio
-import re
 from datetime import datetime
 
 import aiohttp
@@ -8,15 +7,18 @@ import models
 from core.db import AsyncSessionLocal
 from core.logging import logger
 from core.settings import settings
-from utils.db import get_item_by_eprel_id_db_model
+from utils.db import get_already_collected, get_item_by_eprel_id_db_model
+from utils.value_from_json import value_json
 
 
 def eprel_id_generator(eprel_ids):
+    '''Генератор eprel_id.'''
     for eprel_id in eprel_ids:
         yield eprel_id
 
 
 async def get_eprel_category(session, eprel_id):
+    '''Определение категории продукта.'''
     url_short = settings.eprel_url_shart.format(eprel_id=eprel_id)
     attempts = 0
     while attempts < settings.re_read_attempts:
@@ -33,38 +35,12 @@ async def get_eprel_category(session, eprel_id):
             pass
         attempts += 1
         await asyncio.sleep(settings.pause_between_attempts)
-    return None
-
-
-def get_internal_value(key, value, attr_to_capture):
-    internal_value = ''
-    if type(value) in (dict, list):
-        internal_value = value_json(value, attr_to_capture, key)
-    elif key == attr_to_capture:
-        internal_value = str(value)
-    internal_value = re.sub('\t|  ', ' ', internal_value).strip()
-    internal_value = internal_value if internal_value != 'None' else '-'
-    return f'{internal_value} | ' if internal_value != '' else ''
-
-
-def value_json(find_in, attr_to_capture, called_key=''):
-    return_value = ''
-    if isinstance(find_in, dict):
-        for key, value in find_in.items():
-            return_value += get_internal_value(
-                key, value, attr_to_capture
-            )
-    elif isinstance(find_in, list):
-        for list_item in find_in:
-            return_value += get_internal_value(
-                called_key, list_item, attr_to_capture
-            )
-    return return_value[:-3] if return_value else ''
 
 
 async def save_items(
     eprel_id, eprel_category, api_json_dict, common_item, attrs_item
 ):
+    '''Запись информации о продукте в БД.'''
     common_item.eprel_id = eprel_id
     common_item.scraping_datetime = datetime.now()
     common_item.eprel_category = eprel_category
@@ -96,12 +72,14 @@ async def save_items(
         await session.commit()
 
 
-async def scrap_eprel_id(
+async def scrap_eprel_id_with_attrs(
     session, eprel_id, eprel_category
 ):
+    '''Сбор продукта вместе с атрибутами.'''
     url_api = settings.eprel_url_api.format(
         eprel_category=eprel_category, eprel_id=eprel_id
     )
+    api_json_dict = ''
     attempts = 0
     while attempts < settings.re_read_attempts:
         try:
@@ -111,36 +89,36 @@ async def scrap_eprel_id(
                 timeout=settings.http_timeout,
             ) as response:
                 api_json_dict = await response.json()
-            if api_json_dict:
-                common_item = await get_item_by_eprel_id_db_model(
-                    eprel_id, models.Common
-                )
-                attrs_item = await get_item_by_eprel_id_db_model(
-                    eprel_id,
-                    eval(f'models.{eprel_category.capitalize()}')
-                )
-                await save_items(
-                    eprel_id,
-                    eprel_category,
-                    api_json_dict,
-                    common_item,
-                    attrs_item
-                )
-                logger.info(
-                    f'{eprel_id=} {eprel_category=} '
-                    f'has downloaded and processed'
-                )
-                return
         except Exception:
             pass
         attempts += 1
         await asyncio.sleep(settings.pause_between_attempts)
+    if api_json_dict:
+        common_item = await get_item_by_eprel_id_db_model(
+            eprel_id, models.Common
+        )
+        attrs_item = await get_item_by_eprel_id_db_model(
+            eprel_id,
+            eval(f'models.{eprel_category.capitalize()}')
+        )
+        await save_items(
+            eprel_id,
+            eprel_category,
+            api_json_dict,
+            common_item,
+            attrs_item
+        )
+        return True
+    return False
 
 
 async def log_save(
     eprel_id, eprel_category, eprel_category_status
 ):
-    '''Если не собираем атрибуты - просто записываем продукт в лог.'''
+    '''
+    Если не собираем атрибуты - просто записываем
+    продукт в "лог" (только модель Common).
+    '''
     common_item = await get_item_by_eprel_id_db_model(eprel_id, models.Common)
     common_item.eprel_id = eprel_id
     common_item.scraping_datetime = datetime.now()
@@ -155,7 +133,9 @@ async def log_save(
 
 
 async def gather_eprel(get_eprel_id):
-    '''Начало сбора, определение категории.'''
+    '''
+    Начало сбора, определение категории, вызов соответствующего ей обработчика.
+    '''
     for eprel_id in get_eprel_id:
         async with aiohttp.ClientSession() as session:
             eprel_category = await get_eprel_category(session, eprel_id)
@@ -164,36 +144,48 @@ async def gather_eprel(get_eprel_id):
                 await log_save(eprel_id, eprel_category, status)
                 logger.warning(
                     f'{eprel_id=}. '
-                    f'{models.products_common_info.CATEGORY_STATUS[status]}.'
+                    f'{models.products_common_info.CATEGORY_STATUS[status]}'
                 )
             elif eprel_category in settings.category_exceptional:
                 status = 'exception'
                 await log_save(eprel_id, eprel_category, status)
                 logger.info(
                     f'{eprel_id=} {eprel_category=}. '
-                    f'{models.products_common_info.CATEGORY_STATUS[status]}.'
+                    f'{models.products_common_info.CATEGORY_STATUS[status]}'
                 )
             elif eprel_category == settings.category_not_released:
                 status = 'not_released'
                 await log_save(eprel_id, None, status)
                 logger.info(
                     f'{eprel_id=}. '
-                    f'{models.products_common_info.CATEGORY_STATUS[status]}.'
+                    f'{models.products_common_info.CATEGORY_STATUS[status]}'
                 )
             elif eprel_category not in settings.category_to_scrap:
                 status = 'new'
                 await log_save(eprel_id, eprel_category, status)
                 logger.info(
                     f'{eprel_id=} {eprel_category=}. '
-                    f'{models.products_common_info.CATEGORY_STATUS[status]}.'
+                    f'{models.products_common_info.CATEGORY_STATUS[status]}'
+                )
+            elif await scrap_eprel_id_with_attrs(
+                session, eprel_id, eprel_category
+            ):
+                logger.info(
+                    f'{eprel_id=} {eprel_category=} '
+                    f'has downloaded and processed'
                 )
             else:
-                await scrap_eprel_id(session, eprel_id, eprel_category)
+                logger.warning(
+                    f'{eprel_id=} {eprel_category=} '
+                    f'has not processed'
+                )
 
 
 async def get_eprel_ids():
     '''Создание списка продуктов, которые будут собраны.'''
     eprel_ids = set(range(settings.eprel_id_min, settings.eprel_id_max+1))
+    already_collected = await get_already_collected()
+    eprel_ids = eprel_ids.difference(already_collected)
     return eprel_ids
 
 
@@ -203,6 +195,7 @@ async def main():
     максимальное количество соединений.
     '''
     eprel_ids = await get_eprel_ids()
+    print(len(eprel_ids))
     get_eprel_id = eprel_id_generator(eprel_ids)
     tasks = []
     for _ in range(settings.eprel_maximum_connections+1):
