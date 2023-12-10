@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from sqlalchemy import select
 
 from core.db import AsyncSessionLocal
@@ -69,4 +71,24 @@ async def save_value_change_log(
     new_record_db.current_value = current_value
     async with AsyncSessionLocal() as session:
         session.add(new_record_db)
+        await session.commit()
+
+
+async def log_save(
+    eprel_id, eprel_category, eprel_category_status
+):
+    '''
+    Если не собираем атрибуты - просто записываем
+    продукт в "лог" (только модель Common).
+    '''
+    common_item = await get_item_by_eprel_id_db_model(eprel_id, Common)
+    common_item.eprel_id = eprel_id
+    common_item.scraping_datetime = datetime.now()
+    common_item.eprel_category = eprel_category
+    common_item.eprel_category_status = eprel_category_status
+    common_item.eprel_url_short = settings.eprel_url_shart.format(
+        eprel_id=eprel_id
+    )
+    async with AsyncSessionLocal() as session:
+        session.add(common_item)
         await session.commit()

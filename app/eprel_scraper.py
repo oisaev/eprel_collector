@@ -11,6 +11,7 @@ from utils.arg_parser import command_line_args
 from utils.db import (
     get_already_collected,
     get_item_by_eprel_id_db_model,
+    log_save,
     save_value_change_log,
 )
 from utils.value_from_json import value_json
@@ -35,6 +36,13 @@ async def get_eprel_category(session, eprel_id):
                 response_url = response.url
                 url_path = response_url.path.split('/')
                 if response_url != url_short and len(url_path) >= 2:
+                    # Ловушка для исследования qr - убрать
+                    if url_path[-2] == 'qr':
+                        logger.info(
+                            f'{eprel_id=}, category qr, '
+                            f'{url_short=} '
+                            f'{response_url=}'
+                        )
                     return url_path[-2]
         except Exception:
             logger.exception(
@@ -73,7 +81,7 @@ async def save_items(
 
     attrs = settings.category_to_scrap[eprel_category]
     for attribute_name in attrs:
-        previous_value = eval(f'attrs_item.{attribute_name}')
+        previous_value = getattr(attrs_item, attribute_name)
         current_value = value_json(api_json_dict, attribute_name)
         if attrs_item.eprel_id and previous_value != current_value:
             await save_value_change_log(
@@ -136,26 +144,6 @@ async def scrap_eprel_id_with_attrs(
         )
         return True
     return False
-
-
-async def log_save(
-    eprel_id, eprel_category, eprel_category_status
-):
-    '''
-    Если не собираем атрибуты - просто записываем
-    продукт в "лог" (только модель Common).
-    '''
-    common_item = await get_item_by_eprel_id_db_model(eprel_id, models.Common)
-    common_item.eprel_id = eprel_id
-    common_item.scraping_datetime = datetime.now()
-    common_item.eprel_category = eprel_category
-    common_item.eprel_category_status = eprel_category_status
-    common_item.eprel_url_short = settings.eprel_url_shart.format(
-        eprel_id=eprel_id
-    )
-    async with AsyncSessionLocal() as session:
-        session.add(common_item)
-        await session.commit()
 
 
 async def gather_eprel(get_eprel_id):

@@ -13,7 +13,7 @@ class Settings(BaseSettings):
     database_url: str
     logging_dir: str = str(BASE_DIR / 'logs')
     eprel_maximum_connections: int = 100
-    eprel_id_min: int = 1_000_000
+    eprel_id_min: int = 1
     eprel_id_max: int = 2_000_000
     re_read_attempts: int = 5
     pause_between_attempts: int = 4
