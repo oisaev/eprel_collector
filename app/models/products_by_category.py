@@ -5,6 +5,7 @@ from models.models_base import EprelIdBase
 
 class Dishwashers2019(EprelIdBase):
     '''Модель категории dishwashers2019.'''
+
     __table_args__ = (
         ForeignKeyConstraint(
             columns=['eprel_id'],
@@ -22,6 +23,7 @@ class Dishwashers2019(EprelIdBase):
 
 class Electronicdisplays(EprelIdBase):
     '''Модель категории electronicdisplays.'''
+
     __table_args__ = (
         ForeignKeyConstraint(
             columns=['eprel_id'],
@@ -41,6 +43,7 @@ class Electronicdisplays(EprelIdBase):
 
 class Lightsources(EprelIdBase):
     '''Модель категории lightsources.'''
+
     __table_args__ = (
         ForeignKeyConstraint(
             columns=['eprel_id'],
@@ -54,6 +57,7 @@ class Lightsources(EprelIdBase):
 
 class Refrigeratingappliances2019(EprelIdBase):
     '''Модель категории refrigeratingappliances2019.'''
+
     __table_args__ = (
         ForeignKeyConstraint(
             columns=['eprel_id'],
@@ -73,6 +77,7 @@ class Refrigeratingappliances2019(EprelIdBase):
 
 class Tyres(EprelIdBase):
     '''Модель категории tyres.'''
+
     __table_args__ = (
         ForeignKeyConstraint(
             columns=['eprel_id'],
@@ -99,6 +104,7 @@ class Tyres(EprelIdBase):
 
 class Washerdriers2019(EprelIdBase):
     '''Модель категории washerdriers2019.'''
+
     __table_args__ = (
         ForeignKeyConstraint(
             columns=['eprel_id'],
@@ -122,6 +128,7 @@ class Washerdriers2019(EprelIdBase):
 
 class Washingmachines2019(EprelIdBase):
     '''Модель категории washingmachines2019.'''
+
     __table_args__ = (
         ForeignKeyConstraint(
             columns=['eprel_id'],

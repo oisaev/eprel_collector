@@ -27,9 +27,7 @@ class Settings(BaseSettings):
     eprel_url_api: str = (
         'https://eprel.ec.europa.eu/api/products/{eprel_category}/{eprel_id}'
     )
-    eprel_url_pdf: str = (
-        'https://eprel.ec.europa.eu/api/products/{eprel_category}/{eprel_id}/fiches'  # noqa
-    )
+    eprel_url_pdf: str = 'https://eprel.ec.europa.eu/api/products/{eprel_category}/{eprel_id}/fiches'  # noqa
     eprel_manufacturer_attr: str = 'supplierOrTrademark'
     eprel_model_identifier_attr: str = 'modelIdentifier'
     category_not_released: str = 'error'
@@ -60,99 +58,86 @@ class Settings(BaseSettings):
         'waterheatersolardevices',
     )
     category_to_scrap: dict = {
-        'dishwashers2019':
-            (
-                'energyClass',
-                'energyCons100',
-                'ratedCapacity',
-                'waterCons',
-                'programmeDuration',
-                'noise',
-                'noiseClass',
-            ),
-
-        'electronicdisplays':
-            (
-                'energyClassSDR',
-                'powerOnModeSDR',
-                'energyClassHDR',
-                'powerOnModeHDR',
-                'resolutionHorizontalPixels',
-                'resolutionVerticalPixels',
-                'diagonalCm',
-                'diagonalInch',
-                'panelTechnology',
-            ),
-
-        'lightsources':
-            (
-                'energyClass',
-                'powerOnMode',
-                'energyConsOnMode',
-            ),
-
-        'refrigeratingappliances2019':
-            (
-                'energyClass',
-                'energyConsAnnual',
-                'consolidatedEnergyConsAnnual',
-                'capFreezeNet',
-                'capRefrNet',
-                'capBottles',
-                'noise',
-                'noiseClass',
-                'totalVolume',
-            ),
-
-        'tyres':
-            (
-                'sizeDesignation',
-                'tyreDesignation',
-                'loadCapacityIndex',
-                'loadCapacityIndex2',
-                'loadCapacityIndex3',
-                'loadCapacityIndex4',
-                'speedCategorySymbol',
-                'speedCategorySymbol2',
-                'loadCapacityIndicator',
-                'tyreClass',
-                'energyClass',
-                'wetGripClass',
-                'externalRollingNoiseValue',
-                'externalRollingNoiseClass',
-                'severeSnowTyre',
-                'iceTyre',
-            ),
-
-        'washerdriers2019':
-            (
-                'energyClassWashAndDry',
-                'energyClassWash',
-                'energyConsumption100WashAndDry',
-                'energyConsumption100Wash',
-                'ratedCapacityWashAndDry',
-                'ratedCapacityWash',
-                'waterConsumptionWashAndDry',
-                'waterConsumptionWash',
-                'programDurationRatedWashAndDry',
-                'programDurationRatedWash',
-                'spinClass',
-                'noise',
-                'noiseClass',
-            ),
-
-        'washingmachines2019':
-            (
-                'energyClass',
-                'energyConsPerCycle',
-                'energyConsPer100Cycle',
-                'ratedCapacity',
-                'programmeDurationRated',
-                'waterCons',
-                'spinClass',
-                'noise',
-                'noiseClass',
-            ),
+        'dishwashers2019': (
+            'energyClass',
+            'energyCons100',
+            'ratedCapacity',
+            'waterCons',
+            'programmeDuration',
+            'noise',
+            'noiseClass',
+        ),
+        'electronicdisplays': (
+            'energyClassSDR',
+            'powerOnModeSDR',
+            'energyClassHDR',
+            'powerOnModeHDR',
+            'resolutionHorizontalPixels',
+            'resolutionVerticalPixels',
+            'diagonalCm',
+            'diagonalInch',
+            'panelTechnology',
+        ),
+        'lightsources': (
+            'energyClass',
+            'powerOnMode',
+            'energyConsOnMode',
+        ),
+        'refrigeratingappliances2019': (
+            'energyClass',
+            'energyConsAnnual',
+            'consolidatedEnergyConsAnnual',
+            'capFreezeNet',
+            'capRefrNet',
+            'capBottles',
+            'noise',
+            'noiseClass',
+            'totalVolume',
+        ),
+        'tyres': (
+            'sizeDesignation',
+            'tyreDesignation',
+            'loadCapacityIndex',
+            'loadCapacityIndex2',
+            'loadCapacityIndex3',
+            'loadCapacityIndex4',
+            'speedCategorySymbol',
+            'speedCategorySymbol2',
+            'loadCapacityIndicator',
+            'tyreClass',
+            'energyClass',
+            'wetGripClass',
+            'externalRollingNoiseValue',
+            'externalRollingNoiseClass',
+            'severeSnowTyre',
+            'iceTyre',
+        ),
+        'washerdriers2019': (
+            'energyClassWashAndDry',
+            'energyClassWash',
+            'energyConsumption100WashAndDry',
+            'energyConsumption100Wash',
+            'ratedCapacityWashAndDry',
+            'ratedCapacityWash',
+            'waterConsumptionWashAndDry',
+            'waterConsumptionWash',
+            'programDurationRatedWashAndDry',
+            'programDurationRatedWash',
+            'spinClass',
+            'noise',
+            'noiseClass',
+        ),
+        'washingmachines2019': (
+            'energyClass',
+            'energyConsPerCycle',
+            'energyConsPer100Cycle',
+            'ratedCapacity',
+            'programmeDurationRated',
+            'waterCons',
+            'spinClass',
+            'noise',
+            'noiseClass',
+        ),
     }
 
     class Config:

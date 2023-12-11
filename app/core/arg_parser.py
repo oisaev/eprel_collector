@@ -17,7 +17,7 @@ group.add_argument(
         'pdf = collect PDFs for parsed products'
     ),
     choices=['remaining', 'not_collected', 'all', 'pdf'],
-    default='remaining'
+    default='remaining',
 )
 group.add_argument(
     '-pc',
@@ -28,7 +28,7 @@ group.add_argument(
         'If there is no value posted, current time commit will be added'
     ),
     nargs='?',
-    const=str(datetime.now())
+    const=str(datetime.now()),
 )
 group.add_argument(
     '-pcl',
@@ -36,17 +36,15 @@ group.add_argument(
     help='Show N latest PDF commits (default: 10)',
     type=int,
     nargs='?',
-    const=10
+    const=10,
 )
 group.add_argument(
     '-pcr',
     '--pdf_commit_remove',
-    help=(
-        'Remove N latest PDF commits (default: 1)'
-    ),
+    help=('Remove N latest PDF commits (default: 1)'),
     type=int,
     nargs='?',
-    const=1
+    const=1,
 )
 
 parser.add_argument(
@@ -58,7 +56,7 @@ parser.add_argument(
     ),
     type=int,
     nargs='?',
-    const=0
+    const=0,
 )
 parser.add_argument(
     '-pct',
@@ -69,7 +67,7 @@ parser.add_argument(
     ),
     type=int,
     nargs='?',
-    const=0
+    const=0,
 )
 
 command_line_args = parser.parse_args()

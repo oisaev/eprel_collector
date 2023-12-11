@@ -17,12 +17,8 @@ categoty_status_list = [(key, value) for key, value in CATEGORY_STATUS.items()]
 
 class Common(EprelIdBase):
     '''Модель основной информации о продуктах.'''
-    __table_args__ = (
-        UniqueConstraint(
-            'eprel_id',
-            name="unique_eprel_id"
-        ),
-    )
+
+    __table_args__ = (UniqueConstraint('eprel_id', name="unique_eprel_id"),)
 
     scraping_datetime = Column(DateTime, nullable=False)
     eprel_category = Column(String(255), nullable=True)

@@ -6,9 +6,7 @@ def value_json(find_in, attr_to_capture, called_key=''):
     return_value = ''
     if isinstance(find_in, dict):
         for key, value in find_in.items():
-            return_value += get_internal_value(
-                key, value, attr_to_capture
-            )
+            return_value += get_internal_value(key, value, attr_to_capture)
     elif isinstance(find_in, list):
         for list_item in find_in:
             return_value += get_internal_value(

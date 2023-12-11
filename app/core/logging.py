@@ -13,9 +13,7 @@ if not os.path.exists(log_path):
 LOGGING = {
     'version': 1,
     'formatters': {
-        'default': {
-            'format': '%(asctime)s - %(levelname)s - %(message)s'
-        }
+        'default': {'format': '%(asctime)s - %(levelname)s - %(message)s'}
     },
     'handlers': {
         'stdout': {
@@ -31,8 +29,8 @@ LOGGING = {
             'filename': log_path / 'eprel_scraper.log',
             'maxBytes': 10_000_000,
             'backupCount': 5,
-            'encoding': 'utf-8'
-        }
+            'encoding': 'utf-8',
+        },
     },
     'loggers': {
         '': {

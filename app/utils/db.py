@@ -16,13 +16,9 @@ async def get_item_by_eprel_id_db_model(eprel_id, db_model):
     '''
     async with AsyncSessionLocal() as session:
         item = await session.execute(
-            select(
-                db_model
-            ).select_from(
-                db_model
-            ).where(
-                db_model.eprel_id == eprel_id
-            )
+            select(db_model)
+            .select_from(db_model)
+            .where(db_model.eprel_id == eprel_id)
         )
     item = item.first()
     item = item[0] if item else None
@@ -35,18 +31,14 @@ async def get_already_collected(category_statuses):
     '''Получение списка собранных продуктов в определенных статусах.'''
     async with AsyncSessionLocal() as session:
         products = await session.execute(
-            select(
-                Common.eprel_id
-            ).select_from(
-                Common
-            ).where(
+            select(Common.eprel_id)
+            .select_from(Common)
+            .where(
                 Common.eprel_id.between(
-                    settings.eprel_id_min,
-                    settings.eprel_id_max
+                    settings.eprel_id_min, settings.eprel_id_max
                 )
-            ).where(
-                Common.eprel_category_status.in_(category_statuses)
             )
+            .where(Common.eprel_category_status.in_(category_statuses))
         )
     products = products.scalars().all()
     return set(products)
@@ -55,17 +47,11 @@ async def get_already_collected(category_statuses):
 async def get_n_th_datetime_pdf_commit(position):
     async with AsyncSessionLocal() as session:
         date_time = await session.execute(
-            select(
-                PDFCommit.pdf_commit_datetime
-            ).select_from(
-                PDFCommit
-            ).order_by(
-                PDFCommit.pdf_commit_datetime.desc()
-            ).limit(
-                1
-            ).offset(
-                position-1
-            )
+            select(PDFCommit.pdf_commit_datetime)
+            .select_from(PDFCommit)
+            .order_by(PDFCommit.pdf_commit_datetime.desc())
+            .limit(1)
+            .offset(position - 1)
         )
     return date_time.scalar()
 
@@ -74,16 +60,14 @@ async def get_eprel_ids_to_collect_pdfs_db(from_dt, to_dt):
     '''Получение списка продуктов, для которых надо собирать PDF файлы.'''
     async with AsyncSessionLocal() as session:
         products = await session.execute(
-            select(
-                Common.eprel_id
-            ).select_from(
-                Common
-            ).where(
+            select(Common.eprel_id)
+            .select_from(Common)
+            .where(
                 Common.eprel_id.between(
-                    settings.eprel_id_min,
-                    settings.eprel_id_max
+                    settings.eprel_id_min, settings.eprel_id_max
                 )
-            ).where(
+            )
+            .where(
                 and_(
                     Common.eprel_category_status == 'parsing',
                     Common.scraping_datetime >= from_dt,
@@ -133,7 +117,7 @@ async def save_product_db(
                 previous_scraping_datetime,
                 previous_value,
                 current_scraping_datetime,
-                current_value
+                current_value,
             )
         setattr(attrs_item, attribute_name, current_value)
     attrs_item.eprel_id = eprel_id
@@ -152,7 +136,7 @@ async def save_value_change_log(
     previous_scraping_datetime,
     previous_value,
     current_scraping_datetime,
-    current_value
+    current_value,
 ):
     '''Запись в лог изменения значения аттрибута.'''
     new_record_db = ValueChangeLog()
@@ -168,9 +152,7 @@ async def save_value_change_log(
         await session.commit()
 
 
-async def save_non_parsing_db(
-    eprel_id, eprel_category, eprel_category_status
-):
+async def save_non_parsing_db(eprel_id, eprel_category, eprel_category_status):
     '''
     Если не собираем атрибуты - просто записываем
     продукт в "лог" (только модель Common).
@@ -200,11 +182,7 @@ async def remove_pdf_commits(number_of_commits):
     commits = await get_pdf_commit_list(number_of_commits)
     async with AsyncSessionLocal() as session:
         await session.execute(
-            delete(
-                PDFCommit
-            ).where(
-                PDFCommit.pdf_commit_datetime.in_(commits)
-            )
+            delete(PDFCommit).where(PDFCommit.pdf_commit_datetime.in_(commits))
         )
         await session.commit()
         return len(commits)
@@ -213,12 +191,9 @@ async def remove_pdf_commits(number_of_commits):
 async def get_pdf_commit_list(number_of_commits):
     async with AsyncSessionLocal() as session:
         commits = await session.execute(
-            select(
-                PDFCommit.pdf_commit_datetime
-            ).select_from(
-                PDFCommit
-            ).order_by(
-                PDFCommit.pdf_commit_datetime.desc()
-            ).limit(number_of_commits)
+            select(PDFCommit.pdf_commit_datetime)
+            .select_from(PDFCommit)
+            .order_by(PDFCommit.pdf_commit_datetime.desc())
+            .limit(number_of_commits)
         )
     return commits.scalars().all()
