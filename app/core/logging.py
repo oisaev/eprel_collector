@@ -3,7 +3,7 @@ import logging.config
 import os
 from pathlib import Path
 
-from .settings import settings
+from core.settings import settings
 
 
 log_path = Path(settings.logging_dir)
@@ -13,7 +13,9 @@ if not os.path.exists(log_path):
 LOGGING = {
     'version': 1,
     'formatters': {
-        'default': {'format': '%(asctime)s - %(levelname)s - %(message)s'}
+        'default': {
+            'format': '%(asctime)s - %(levelname)s - %(message)s'
+        }
     },
     'handlers': {
         'stdout': {

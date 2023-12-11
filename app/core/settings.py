@@ -12,9 +12,10 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 class Settings(BaseSettings):
     database_url: str
     logging_dir: str = str(BASE_DIR / 'logs')
+    pdfs_dir: str = str(BASE_DIR / 'pdfs')
     eprel_maximum_connections: int = 100
-    eprel_id_min: int = 1
-    eprel_id_max: int = 2_000_000
+    eprel_id_min: int = 341551
+    eprel_id_max: int = 341570
     re_read_attempts: int = 5
     pause_between_attempts: int = 4
     http_timeout: int = 30
@@ -25,6 +26,9 @@ class Settings(BaseSettings):
     )
     eprel_url_api: str = (
         'https://eprel.ec.europa.eu/api/products/{eprel_category}/{eprel_id}'
+    )
+    eprel_url_pdf: str = (
+        'https://eprel.ec.europa.eu/api/products/{eprel_category}/{eprel_id}/fiches'  # noqa
     )
     eprel_manufacturer_attr: str = 'supplierOrTrademark'
     eprel_model_identifier_attr: str = 'modelIdentifier'

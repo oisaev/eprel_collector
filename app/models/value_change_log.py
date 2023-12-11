@@ -1,6 +1,6 @@
 from sqlalchemy import Column, DateTime, String
 
-from .models_base import EprelIdBase
+from models.models_base import EprelIdBase
 
 
 class ValueChangeLog(EprelIdBase):

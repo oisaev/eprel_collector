@@ -1,5 +1,6 @@
 '''Импорты моделей для видимости Alembic'ом'''
 from core.db import Base  # noqa
+from models.pdf_commit import PDFCommit  # noqa
 from models.products_by_category import (  # noqa
     Dishwashers2019,
     Electronicdisplays,

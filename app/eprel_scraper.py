@@ -1,5 +1,8 @@
 import asyncio
+import os
+import random
 from datetime import datetime
+from pathlib import Path
 
 import aiohttp
 
@@ -10,8 +13,10 @@ from core.settings import settings
 from utils.arg_parser import command_line_args
 from utils.db import (
     get_already_collected,
+    get_already_collected_pdfs,
     get_item_by_eprel_id_db_model,
     log_save,
+    pdf_commit,
     save_value_change_log,
 )
 from utils.value_from_json import value_json
@@ -19,6 +24,7 @@ from utils.value_from_json import value_json
 
 def eprel_id_generator(eprel_ids):
     '''Генератор eprel_id для сбора.'''
+    eprel_ids = random.sample(tuple(eprel_ids), len(eprel_ids))
     for eprel_id in eprel_ids:
         yield eprel_id
 
@@ -112,7 +118,7 @@ async def scrap_eprel_id_with_attrs(
     )
     api_json_dict = ''
     attempts = 0
-    while attempts < settings.re_read_attempts:
+    while not api_json_dict and attempts < settings.re_read_attempts:
         try:
             async with session.get(
                 url=url_api,
@@ -146,6 +152,40 @@ async def scrap_eprel_id_with_attrs(
     return False
 
 
+async def load_pdfs(session, eprel_id, eprel_category):
+    url_pdf = settings.eprel_url_pdf.format(
+        eprel_category=eprel_category, eprel_id=eprel_id
+    )
+    fiches = ''
+    attempts = 0
+    while len(fiches) < 5000 and attempts < settings.re_read_attempts:
+        try:
+            async with session.get(
+                url=url_pdf,
+                headers={'x-api-key': settings.x_api_key},
+                timeout=settings.http_timeout,
+            ) as response:
+                fiches_url = response.url
+                fiches = await response.read()
+        except Exception:
+            logger.exception(
+                f'{eprel_id=}, attempt {attempts+1}. '
+                f'Failed to get fiches zip'
+            )
+        attempts += 1
+        await asyncio.sleep(settings.pause_between_attempts)
+    if len(fiches) > 5000:
+        pdfs_path = Path(settings.pdfs_dir)
+        if not os.path.exists(pdfs_path):
+            os.makedirs(pdfs_path)
+        with open(
+            os.path.join(pdfs_path, fiches_url.path.split('/')[-1]), 'wb'
+        ) as f:
+            f.write(fiches)
+        return True
+    return False
+
+
 async def gather_eprel(get_eprel_id):
     '''
     Начало сбора, определение категории, вызов соответствующего ей обработчика.
@@ -153,6 +193,13 @@ async def gather_eprel(get_eprel_id):
     for eprel_id in get_eprel_id:
         async with aiohttp.ClientSession() as session:
             eprel_category = await get_eprel_category(session, eprel_id)
+            if command_line_args.mode == 'pdf':
+                await load_pdfs(session, eprel_id, eprel_category)
+                logger.info(
+                    f'{eprel_id=} {eprel_category=}. '
+                    f'Fiches PDFs .zip is loaded'
+                )
+                return
             if not eprel_category:
                 status = 'broken'
                 await log_save(eprel_id, eprel_category, status)
@@ -199,7 +246,7 @@ async def get_eprel_ids():
     '''Создание списка продуктов, которые будут собраны.'''
     eprel_ids = set(range(settings.eprel_id_min, settings.eprel_id_max+1))
     already_collected = set()
-    if not command_line_args.mode or command_line_args.mode == 'remaining':
+    if command_line_args.mode == 'remaining':
         already_collected = await get_already_collected(
             ('parsing', 'exception', 'not_released')
         )
@@ -207,6 +254,8 @@ async def get_eprel_ids():
         already_collected = await get_already_collected(
             ('parsing', 'exception')
         )
+    elif command_line_args.mode == 'pdf':
+        already_collected = await get_already_collected_pdfs()
     return eprel_ids.difference(already_collected)
 
 
@@ -215,18 +264,21 @@ async def main():
     Запуск сбора информации через заданное
     максимальное количество соединений.
     '''
-    logger.info(f"Working in '{command_line_args.mode or 'remaining'}' mode")
-    eprel_ids = await get_eprel_ids()
-    logger.info(f'Will be collected {len(eprel_ids)} products')
-    get_eprel_id = eprel_id_generator(eprel_ids)
-    tasks = []
-    for _ in range(settings.eprel_maximum_connections+1):
-        tasks.append(
-            asyncio.create_task(
-                gather_eprel(get_eprel_id)
+    if command_line_args.pdf_commit:
+        await pdf_commit(command_line_args.pdf_commit)
+    else:
+        logger.info(f"Working in '{command_line_args.mode}' mode")
+        eprel_ids = await get_eprel_ids()
+        logger.info(f'Will be collected {len(eprel_ids)} products')
+        get_eprel_id = eprel_id_generator(eprel_ids)
+        tasks = []
+        for _ in range(settings.eprel_maximum_connections+1):
+            tasks.append(
+                asyncio.create_task(
+                    gather_eprel(get_eprel_id)
+                )
             )
-        )
-    await asyncio.gather(*tasks)
+        await asyncio.gather(*tasks)
 
 
 if __name__ == '__main__':

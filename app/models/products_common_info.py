@@ -1,7 +1,7 @@
 from sqlalchemy import Column, DateTime, String, UniqueConstraint
 from sqlalchemy_utils import ChoiceType, URLType
 
-from .models_base import EprelIdBase
+from models.models_base import EprelIdBase
 
 
 CATEGORY_STATUS = {

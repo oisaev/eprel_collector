@@ -1,6 +1,6 @@
 from sqlalchemy import Column, ForeignKeyConstraint, String
 
-from .models_base import EprelIdBase
+from models.models_base import EprelIdBase
 
 
 class Dishwashers2019(EprelIdBase):
