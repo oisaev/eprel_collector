@@ -1,11 +1,11 @@
 from datetime import datetime
 
-from sqlalchemy import and_, or_, select
+from sqlalchemy import and_, delete, select
 
 from core.db import AsyncSessionLocal
-from core.logging import logger
 from core.settings import settings
 from models import Common, PDFCommit, ValueChangeLog
+from utils.value_from_json import value_json
 
 
 async def get_item_by_eprel_id_db_model(eprel_id, db_model):
@@ -52,8 +52,7 @@ async def get_already_collected(category_statuses):
     return set(products)
 
 
-async def get_already_collected_pdfs():
-    '''Получение списка продуктов, для которых не надо собирать PDF файлы.'''
+async def get_n_th_datetime_pdf_commit(position):
     async with AsyncSessionLocal() as session:
         date_time = await session.execute(
             select(
@@ -62,11 +61,17 @@ async def get_already_collected_pdfs():
                 PDFCommit
             ).order_by(
                 PDFCommit.pdf_commit_datetime.desc()
-            ).limit(1)
+            ).limit(
+                1
+            ).offset(
+                position-1
+            )
         )
-    date_time = date_time.scalar()
-    if not date_time:
-        date_time = datetime.fromisoformat('1000-01-01')
+    return date_time.scalar()
+
+
+async def get_eprel_ids_to_collect_pdfs_db(from_dt, to_dt):
+    '''Получение списка продуктов, для которых надо собирать PDF файлы.'''
     async with AsyncSessionLocal() as session:
         products = await session.execute(
             select(
@@ -79,17 +84,65 @@ async def get_already_collected_pdfs():
                     settings.eprel_id_max
                 )
             ).where(
-                or_(
-                    Common.eprel_category_status != 'parsing',
-                    and_(
-                        Common.eprel_category_status == 'parsing',
-                        Common.scraping_datetime <= date_time
-                    )
+                and_(
+                    Common.eprel_category_status == 'parsing',
+                    Common.scraping_datetime >= from_dt,
+                    Common.scraping_datetime <= to_dt,
                 )
             )
         )
     products = products.scalars().all()
     return set(products)
+
+
+async def save_product_db(
+    eprel_id, eprel_category, dict_from_json, common_item, attrs_item
+):
+    '''Запись информации о продукте в БД.'''
+    previous_scraping_datetime = common_item.scraping_datetime
+    current_scraping_datetime = datetime.now()
+    common_item.eprel_id = eprel_id
+    common_item.scraping_datetime = current_scraping_datetime
+    common_item.eprel_category = eprel_category
+    common_item.eprel_category_status = 'parsing'
+    common_item.eprel_manufacturer = value_json(
+        dict_from_json, settings.eprel_manufacturer_attr
+    )
+    common_item.eprel_model_identifier = value_json(
+        dict_from_json, settings.eprel_model_identifier_attr
+    )
+    common_item.eprel_url_short = settings.eprel_url_shart.format(
+        eprel_id=eprel_id
+    )
+    common_item.eprel_url_long = settings.eprel_url_long.format(
+        eprel_category=eprel_category, eprel_id=eprel_id
+    )
+    common_item.eprel_url_api = settings.eprel_url_api.format(
+        eprel_category=eprel_category, eprel_id=eprel_id
+    )
+
+    attrs = settings.category_to_scrap[eprel_category]
+    for attribute_name in attrs:
+        previous_value = getattr(attrs_item, attribute_name)
+        current_value = value_json(dict_from_json, attribute_name)
+        if attrs_item.eprel_id and previous_value != current_value:
+            await save_value_change_log(
+                eprel_id,
+                eprel_category,
+                attribute_name,
+                previous_scraping_datetime,
+                previous_value,
+                current_scraping_datetime,
+                current_value
+            )
+        setattr(attrs_item, attribute_name, current_value)
+    attrs_item.eprel_id = eprel_id
+
+    async with AsyncSessionLocal() as session:
+        session.add(common_item)
+        await session.commit()
+        session.add(attrs_item)
+        await session.commit()
 
 
 async def save_value_change_log(
@@ -115,7 +168,7 @@ async def save_value_change_log(
         await session.commit()
 
 
-async def log_save(
+async def save_non_parsing_db(
     eprel_id, eprel_category, eprel_category_status
 ):
     '''
@@ -135,15 +188,37 @@ async def log_save(
         await session.commit()
 
 
-async def pdf_commit(date_time):
-    try:
-        date_time = datetime.fromisoformat(date_time)
-    except ValueError:
-        logger.warning('PDF commit: time format is wrong')
-    else:
-        new_record = PDFCommit()
-        new_record.pdf_commit_datetime = date_time
-        async with AsyncSessionLocal() as session:
-            session.add(new_record)
-            await session.commit()
-        logger.info(f'PDF commit: added {date_time} commit')
+async def save_pdf_commit(date_time):
+    new_record = PDFCommit()
+    new_record.pdf_commit_datetime = date_time
+    async with AsyncSessionLocal() as session:
+        session.add(new_record)
+        await session.commit()
+
+
+async def remove_pdf_commits(number_of_commits):
+    commits = await get_pdf_commit_list(number_of_commits)
+    async with AsyncSessionLocal() as session:
+        await session.execute(
+            delete(
+                PDFCommit
+            ).where(
+                PDFCommit.pdf_commit_datetime.in_(commits)
+            )
+        )
+        await session.commit()
+        return len(commits)
+
+
+async def get_pdf_commit_list(number_of_commits):
+    async with AsyncSessionLocal() as session:
+        commits = await session.execute(
+            select(
+                PDFCommit.pdf_commit_datetime
+            ).select_from(
+                PDFCommit
+            ).order_by(
+                PDFCommit.pdf_commit_datetime.desc()
+            ).limit(number_of_commits)
+        )
+    return commits.scalars().all()

@@ -20,7 +20,7 @@ LOGGING = {
     'handlers': {
         'stdout': {
             'class': 'logging.StreamHandler',
-            'level': logging.WARNING,
+            'level': logging.INFO,
             'formatter': 'default',
             'stream': 'ext://sys.stdout',
         },
@@ -29,7 +29,7 @@ LOGGING = {
             'level': logging.INFO,
             'formatter': 'default',
             'filename': log_path / 'eprel_scraper.log',
-            'maxBytes': 100_000_000,
+            'maxBytes': 10_000_000,
             'backupCount': 5,
             'encoding': 'utf-8'
         }

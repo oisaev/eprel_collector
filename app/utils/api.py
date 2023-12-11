@@ -1,0 +1,84 @@
+import asyncio
+
+import aiohttp
+
+from core.logging import logger
+from core.settings import settings
+
+
+async def get_eprel_category_api(eprel_id):
+    '''Определение категории продукта.'''
+    async with aiohttp.ClientSession() as session:
+        url_short = settings.eprel_url_shart.format(eprel_id=eprel_id)
+        attempts = 0
+        while attempts < settings.re_read_attempts:
+            try:
+                async with session.get(
+                    url=url_short,
+                    timeout=settings.http_timeout,
+                ) as response:
+                    response_url = response.url
+                    url_path = response_url.path.split('/')
+                    if str(response_url) != url_short and len(url_path) >= 2:
+                        return url_path[-2]
+            except Exception:
+                logger.exception(
+                    f'{eprel_id=}, attempt {attempts+1}. '
+                    f'Failed to convert url_short->url_long'
+                )
+            attempts += 1
+            await asyncio.sleep(settings.pause_between_attempts)
+
+
+async def get_dict_from_json_api(eprel_id, eprel_category):
+    '''Получение словаря со всеми значениями атрибутов продукта из json.'''
+    async with aiohttp.ClientSession() as session:
+        url_api = settings.eprel_url_api.format(
+            eprel_category=eprel_category, eprel_id=eprel_id
+        )
+        dict_from_json = ''
+        attempts = 0
+        while not dict_from_json and attempts < settings.re_read_attempts:
+            try:
+                async with session.get(
+                    url=url_api,
+                    headers={'x-api-key': settings.x_api_key},
+                    timeout=settings.http_timeout,
+                ) as response:
+                    dict_from_json = await response.json()
+            except Exception:
+                logger.exception(
+                    f'{eprel_id=}, attempt {attempts+1}. '
+                    f'Failed to get API response'
+                )
+            attempts += 1
+            await asyncio.sleep(settings.pause_between_attempts)
+    return dict_from_json
+
+
+async def get_pdfs_zip_api(eprel_id, eprel_category):
+    '''Получение архива с PDF файлами fiche на всех языках.'''
+    async with aiohttp.ClientSession() as session:
+        url_pdf = settings.eprel_url_pdf.format(
+            eprel_category=eprel_category, eprel_id=eprel_id
+        )
+        fiche = ''
+        fiche_url_path = ''
+        attempts = 0
+        while len(fiche) < 5000 and attempts < settings.re_read_attempts:
+            try:
+                async with session.get(
+                    url=url_pdf,
+                    headers={'x-api-key': settings.x_api_key},
+                    timeout=settings.http_timeout,
+                ) as response:
+                    fiche_url_path = response.url.path
+                    fiche = await response.read()
+            except Exception:
+                logger.exception(
+                    f'{eprel_id=}, attempt {attempts+1}. '
+                    f'Failed to get fiches zip'
+                )
+            attempts += 1
+            await asyncio.sleep(settings.pause_between_attempts)
+    return fiche, fiche_url_path

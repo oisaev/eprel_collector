@@ -4,136 +4,46 @@ import random
 from datetime import datetime
 from pathlib import Path
 
-import aiohttp
-
 import models
-from core.db import AsyncSessionLocal
+from core.arg_parser import command_line_args
 from core.logging import logger
 from core.settings import settings
-from utils.arg_parser import command_line_args
-from utils.db import (
-    get_already_collected,
-    get_already_collected_pdfs,
-    get_item_by_eprel_id_db_model,
-    log_save,
-    pdf_commit,
-    save_value_change_log,
+from utils.api import (
+    get_dict_from_json_api,
+    get_eprel_category_api,
+    get_pdfs_zip_api,
 )
-from utils.value_from_json import value_json
+from utils.db import (
+    get_item_by_eprel_id_db_model,
+    save_non_parsing_db,
+    save_product_db,
+)
+from utils.get_eprel_ids import get_eprel_ids
+from utils.pdf_commits import pdf_commit_handler
 
 
 def eprel_id_generator(eprel_ids):
-    '''Генератор eprel_id для сбора.'''
+    '''
+    Генератор eprel_id из подготовленного списка продуктов.
+    '''
+    to_log = {}
+    if len(eprel_ids) > 500:
+        for persent in range(1, 101):
+            to_log[int(len(eprel_ids)/100*persent)] = persent
     eprel_ids = random.sample(tuple(eprel_ids), len(eprel_ids))
-    for eprel_id in eprel_ids:
+    for yielded, eprel_id in enumerate(eprel_ids):
         yield eprel_id
-
-
-async def get_eprel_category(session, eprel_id):
-    '''Определение категории продукта.'''
-    url_short = settings.eprel_url_shart.format(eprel_id=eprel_id)
-    attempts = 0
-    while attempts < settings.re_read_attempts:
-        try:
-            async with session.get(
-                url=url_short,
-                timeout=settings.http_timeout,
-            ) as response:
-                response_url = response.url
-                url_path = response_url.path.split('/')
-                if response_url != url_short and len(url_path) >= 2:
-                    # Ловушка для исследования qr - убрать
-                    if url_path[-2] == 'qr':
-                        logger.info(
-                            f'{eprel_id=}, category qr, '
-                            f'{url_short=} '
-                            f'{response_url=}'
-                        )
-                    return url_path[-2]
-        except Exception:
-            logger.exception(
-                f'{eprel_id=}, attempt {attempts+1}. '
-                f'Failed to convert url_short->url_long'
+        if yielded+1 in to_log:
+            logger.info(
+                f'{to_log[yielded+1]}% of products processed. '
+                f'{yielded+1} of {len(eprel_ids)}'
             )
-        attempts += 1
-        await asyncio.sleep(settings.pause_between_attempts)
 
 
-async def save_items(
-    eprel_id, eprel_category, api_json_dict, common_item, attrs_item
-):
-    '''Запись информации о продукте в БД.'''
-    previous_scraping_datetime = common_item.scraping_datetime
-    current_scraping_datetime = datetime.now()
-    common_item.eprel_id = eprel_id
-    common_item.scraping_datetime = current_scraping_datetime
-    common_item.eprel_category = eprel_category
-    common_item.eprel_category_status = 'parsing'
-    common_item.eprel_manufacturer = value_json(
-        api_json_dict, settings.eprel_manufacturer_attr
-    )
-    common_item.eprel_model_identifier = value_json(
-        api_json_dict, settings.eprel_model_identifier_attr
-    )
-    common_item.eprel_url_short = settings.eprel_url_shart.format(
-        eprel_id=eprel_id
-    )
-    common_item.eprel_url_long = settings.eprel_url_long.format(
-        eprel_category=eprel_category, eprel_id=eprel_id
-    )
-    common_item.eprel_url_api = settings.eprel_url_api.format(
-        eprel_category=eprel_category, eprel_id=eprel_id
-    )
-
-    attrs = settings.category_to_scrap[eprel_category]
-    for attribute_name in attrs:
-        previous_value = getattr(attrs_item, attribute_name)
-        current_value = value_json(api_json_dict, attribute_name)
-        if attrs_item.eprel_id and previous_value != current_value:
-            await save_value_change_log(
-                eprel_id,
-                eprel_category,
-                attribute_name,
-                previous_scraping_datetime,
-                previous_value,
-                current_scraping_datetime,
-                current_value
-            )
-        setattr(attrs_item, attribute_name, current_value)
-    attrs_item.eprel_id = eprel_id
-
-    async with AsyncSessionLocal() as session:
-        session.add(common_item)
-        await session.commit()
-        session.add(attrs_item)
-        await session.commit()
-
-
-async def scrap_eprel_id_with_attrs(
-    session, eprel_id, eprel_category
-):
+async def scrap_eprel_id_with_attrs(eprel_id, eprel_category):
     '''Сбор продукта вместе с атрибутами.'''
-    url_api = settings.eprel_url_api.format(
-        eprel_category=eprel_category, eprel_id=eprel_id
-    )
-    api_json_dict = ''
-    attempts = 0
-    while not api_json_dict and attempts < settings.re_read_attempts:
-        try:
-            async with session.get(
-                url=url_api,
-                headers={'x-api-key': settings.x_api_key},
-                timeout=settings.http_timeout,
-            ) as response:
-                api_json_dict = await response.json()
-        except Exception:
-            logger.exception(
-                f'{eprel_id=}, attempt {attempts+1}. '
-                f'Failed to get API response'
-            )
-        attempts += 1
-        await asyncio.sleep(settings.pause_between_attempts)
-    if api_json_dict:
+    dict_from_json = await get_dict_from_json_api(eprel_id, eprel_category)
+    if dict_from_json:
         common_item = await get_item_by_eprel_id_db_model(
             eprel_id, models.Common
         )
@@ -141,10 +51,10 @@ async def scrap_eprel_id_with_attrs(
             eprel_id,
             eval(f'models.{eprel_category.capitalize()}')
         )
-        await save_items(
+        await save_product_db(
             eprel_id,
             eprel_category,
-            api_json_dict,
+            dict_from_json,
             common_item,
             attrs_item
         )
@@ -152,36 +62,17 @@ async def scrap_eprel_id_with_attrs(
     return False
 
 
-async def load_pdfs(session, eprel_id, eprel_category):
-    url_pdf = settings.eprel_url_pdf.format(
-        eprel_category=eprel_category, eprel_id=eprel_id
-    )
-    fiches = ''
-    attempts = 0
-    while len(fiches) < 5000 and attempts < settings.re_read_attempts:
-        try:
-            async with session.get(
-                url=url_pdf,
-                headers={'x-api-key': settings.x_api_key},
-                timeout=settings.http_timeout,
-            ) as response:
-                fiches_url = response.url
-                fiches = await response.read()
-        except Exception:
-            logger.exception(
-                f'{eprel_id=}, attempt {attempts+1}. '
-                f'Failed to get fiches zip'
-            )
-        attempts += 1
-        await asyncio.sleep(settings.pause_between_attempts)
-    if len(fiches) > 5000:
+async def load_pdfs(eprel_id, eprel_category):
+    '''Сбор архивов с .pdf fiche.'''
+    fiche, fiche_url_path = await get_pdfs_zip_api(eprel_id, eprel_category)
+    if len(fiche) >= 5000:
         pdfs_path = Path(settings.pdfs_dir)
         if not os.path.exists(pdfs_path):
             os.makedirs(pdfs_path)
         with open(
-            os.path.join(pdfs_path, fiches_url.path.split('/')[-1]), 'wb'
+            os.path.join(pdfs_path, fiche_url_path.split('/')[-1]), 'wb'
         ) as f:
-            f.write(fiches)
+            f.write(fiche)
         return True
     return False
 
@@ -191,82 +82,72 @@ async def gather_eprel(get_eprel_id):
     Начало сбора, определение категории, вызов соответствующего ей обработчика.
     '''
     for eprel_id in get_eprel_id:
-        async with aiohttp.ClientSession() as session:
-            eprel_category = await get_eprel_category(session, eprel_id)
-            if command_line_args.mode == 'pdf':
-                await load_pdfs(session, eprel_id, eprel_category)
-                logger.info(
-                    f'{eprel_id=} {eprel_category=}. '
-                    f'Fiches PDFs .zip is loaded'
-                )
-                return
-            if not eprel_category:
-                status = 'broken'
-                await log_save(eprel_id, eprel_category, status)
-                logger.warning(
-                    f'{eprel_id=}. '
-                    f'{models.products_common_info.CATEGORY_STATUS[status]}'
-                )
-            elif eprel_category in settings.category_exceptional:
-                status = 'exception'
-                await log_save(eprel_id, eprel_category, status)
-                logger.info(
-                    f'{eprel_id=} {eprel_category=}. '
-                    f'{models.products_common_info.CATEGORY_STATUS[status]}'
-                )
-            elif eprel_category == settings.category_not_released:
-                status = 'not_released'
-                await log_save(eprel_id, None, status)
-                logger.info(
-                    f'{eprel_id=}. '
-                    f'{models.products_common_info.CATEGORY_STATUS[status]}'
-                )
-            elif eprel_category not in settings.category_to_scrap:
-                status = 'new'
-                await log_save(eprel_id, eprel_category, status)
-                logger.info(
-                    f'{eprel_id=} {eprel_category=}. '
-                    f'{models.products_common_info.CATEGORY_STATUS[status]}'
-                )
-            elif await scrap_eprel_id_with_attrs(
-                session, eprel_id, eprel_category
-            ):
-                logger.info(
-                    f'{eprel_id=} {eprel_category=} '
-                    f'has downloaded and processed'
-                )
-            else:
-                logger.warning(
-                    f'{eprel_id=} {eprel_category=} '
-                    f'has not processed'
-                )
+        eprel_category = await get_eprel_category_api(eprel_id)
+        if command_line_args.mode == 'pdf':
+            await load_pdfs(eprel_id, eprel_category)
+            return
+        if not eprel_category:
+            status = 'broken'
+            await save_non_parsing_db(eprel_id, eprel_category, status)
+            logger.warning(
+                f'{eprel_id=}. '
+                f'{models.products_common_info.CATEGORY_STATUS[status]}'
+            )
+        elif eprel_category in settings.category_exceptional:
+            status = 'exception'
+            await save_non_parsing_db(eprel_id, eprel_category, status)
+        elif eprel_category == settings.category_not_released:
+            status = 'not_released'
+            await save_non_parsing_db(eprel_id, None, status)
+        elif eprel_category not in settings.category_to_scrap:
+            status = 'new'
+            await save_non_parsing_db(eprel_id, eprel_category, status)
+            logger.warning(
+                f'{eprel_id=} {eprel_category=}. '
+                f'{models.products_common_info.CATEGORY_STATUS[status]}'
+            )
+        elif not await scrap_eprel_id_with_attrs(eprel_id, eprel_category):
+            logger.warning(
+                f'{eprel_id=} {eprel_category=} '
+                f'has not processed'
+            )
 
 
-async def get_eprel_ids():
-    '''Создание списка продуктов, которые будут собраны.'''
-    eprel_ids = set(range(settings.eprel_id_min, settings.eprel_id_max+1))
-    already_collected = set()
-    if command_line_args.mode == 'remaining':
-        already_collected = await get_already_collected(
-            ('parsing', 'exception', 'not_released')
+async def check_from_to_args_correctness():
+    from_val = command_line_args.pdf_commit_from
+    to_val = command_line_args.pdf_commit_to
+    if ((from_val is not None or to_val is not None) and
+            command_line_args.mode != 'pdf'):
+        logger.warning(
+            'pdf_commit_from and pdf_commit_to arguments should be used only '
+            'with pdf mode'
         )
-    elif command_line_args.mode == 'not_collected':
-        already_collected = await get_already_collected(
-            ('parsing', 'exception')
+    elif ((from_val is not None and from_val < 1) or
+            (to_val is not None and to_val < 1)):
+        logger.warning('pdf_commit_from/pdf_commit_to should be >= 1')
+    elif from_val is None and to_val is not None:
+        logger.warning(
+            "pdf_commit_to can't be without pdf_commit_from"
         )
-    elif command_line_args.mode == 'pdf':
-        already_collected = await get_already_collected_pdfs()
-    return eprel_ids.difference(already_collected)
+    elif from_val is not None and to_val is not None and from_val < to_val:
+        logger.warning('pdf_commit_from should be >= pdf_commit_to')
+    else:
+        return True
 
 
 async def main():
     '''
-    Запуск сбора информации через заданное
+    Работа с PDF commit'ами и
+    запуск сбора информации через заданное
     максимальное количество соединений.
     '''
-    if command_line_args.pdf_commit:
-        await pdf_commit(command_line_args.pdf_commit)
+    if (command_line_args.pdf_commit is not None or
+            command_line_args.pdf_commit_remove is not None or
+            command_line_args.pdf_commit_list is not None):
+        await pdf_commit_handler()
     else:
+        if not await check_from_to_args_correctness():
+            return
         logger.info(f"Working in '{command_line_args.mode}' mode")
         eprel_ids = await get_eprel_ids()
         logger.info(f'Will be collected {len(eprel_ids)} products')
@@ -282,6 +163,6 @@ async def main():
 
 
 if __name__ == '__main__':
-    logger.info(f'Program is started at {datetime.now()}')
+    logger.info(f'Started at {datetime.now()}')
     asyncio.run(main())
-    logger.info(f'Program is finished at {datetime.now()}')
+    logger.info(f'Finished at {datetime.now()}')
