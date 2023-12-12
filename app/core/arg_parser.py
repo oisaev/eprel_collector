@@ -10,7 +10,7 @@ group.add_argument(
     '--mode',
     help=(
         'Parsing mode: '
-        'remaining = all in range except parsed, exceptional '
+        'remaining = all in range except parsed, non_parsing '
         'and not released yet (default mode); '
         'not_collected = the same as remaining + not released; '
         'all = all in range; '

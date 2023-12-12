@@ -1,8 +1,8 @@
 """First migration
 
-Revision ID: 577d3e96e82a
+Revision ID: eb476445bba4
 Revises:
-Create Date: 2023-12-11 00:43:14.925512
+Create Date: 2023-12-12 22:00:47.029077
 
 """
 from typing import Sequence, Union
@@ -11,11 +11,11 @@ import sqlalchemy as sa
 import sqlalchemy_utils
 from alembic import op
 
-from models.products_common_info import categoty_status_list
+from core.constants import CATEGORY_STATUS_LIST
 
 
 # revision identifiers, used by Alembic.
-revision: str = '577d3e96e82a'
+revision: str = 'eb476445bba4'
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -29,7 +29,7 @@ def upgrade() -> None:
         sa.Column('eprel_category', sa.String(length=255), nullable=True),
         sa.Column(
             'eprel_category_status',
-            sqlalchemy_utils.types.choice.ChoiceType(categoty_status_list),
+            sqlalchemy_utils.types.choice.ChoiceType(CATEGORY_STATUS_LIST),
             nullable=False,
         ),
         sa.Column('eprel_manufacturer', sa.String(length=255), nullable=True),
@@ -55,6 +55,12 @@ def upgrade() -> None:
         sa.Column('id', sa.Integer(), nullable=False),
         sa.PrimaryKeyConstraint('id'),
         sa.UniqueConstraint('eprel_id', name='unique_eprel_id'),
+    )
+    op.create_table(
+        'pdfcommit',
+        sa.Column('pdf_commit_datetime', sa.DateTime(), nullable=False),
+        sa.Column('id', sa.Integer(), nullable=False),
+        sa.PrimaryKeyConstraint('id'),
     )
     op.create_table(
         'valuechangelog',
@@ -281,5 +287,6 @@ def downgrade() -> None:
     op.drop_table('electronicdisplays')
     op.drop_table('dishwashers2019')
     op.drop_table('valuechangelog')
+    op.drop_table('pdfcommit')
     op.drop_table('common')
     # ### end Alembic commands ###

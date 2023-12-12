@@ -11,7 +11,7 @@ import sqlalchemy as sa
 import sqlalchemy_utils
 from alembic import op
 
-from models.products_common_info import categoty_status_list
+from core.constants import CATEGORY_STATUS_LIST
 ${imports if imports else ""}
 
 # revision identifiers, used by Alembic.
