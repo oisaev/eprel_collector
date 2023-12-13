@@ -1,5 +1,5 @@
-# eprel_scraper
+# eprel_collector
 
 Запуск программы:
 
-python app/eprel_scraper.py
+python eprel_collector/application.py

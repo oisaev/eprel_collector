@@ -2,7 +2,7 @@ import argparse
 from datetime import datetime
 
 
-parser = argparse.ArgumentParser(description='EPREL scraper')
+parser = argparse.ArgumentParser(description='EPREL collector')
 
 group = parser.add_mutually_exclusive_group()
 group.add_argument(

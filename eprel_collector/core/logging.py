@@ -26,7 +26,7 @@ LOGGING = {
             'class': 'logging.handlers.RotatingFileHandler',
             'level': logging.INFO,
             'formatter': 'default',
-            'filename': log_path / 'eprel_scraper.log',
+            'filename': log_path / 'eprel_collector.log',
             'maxBytes': 10_000_000,
             'backupCount': 5,
             'encoding': 'utf-8',

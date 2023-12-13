@@ -1,9 +1,10 @@
 [tool.poetry]
-name = "eprel-scraper"
-version = "0.1.0"
-description = ""
-authors = ["Oleg Isaev <oleg.n.isaev@yandex.ru>"]
+name = "eprel_collector"
+version = "0.9.0"
+description = "Collects information from European Product Registry for Energy Labelling"
+authors = ["Oleg Isaev <oleg.isayev@gmail.com>"]
 readme = "README.md"
+repository = "https://github.com/oisaev/eprel_collector"
 
 [tool.poetry.dependencies]
 python = "~3.11"
