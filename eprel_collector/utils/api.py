@@ -78,10 +78,10 @@ async def get_pdfs_zip_api(eprel_id, eprel_category):
                     headers={'x-api-key': X_API_KEY},
                     timeout=settings.http_timeout,
                 ) as response:
-                    fiche_url_path = response.url.path
+                    file_name = response.url.path.split('/')[-1]
                     fiche = await response.read()
                     if len(fiche) > 5000:
-                        return fiche, fiche_url_path, True
+                        return fiche, file_name, True
             except Exception:
                 logger.exception(
                     f'{eprel_id=}, attempt {attempts+1}. '

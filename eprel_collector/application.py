@@ -68,16 +68,14 @@ async def scrap_product_with_attrs(eprel_id, eprel_category):
 
 async def gather_fiches(eprel_id, eprel_category):
     '''Сбор .zip архивов с .pdf fiche.'''
-    fiche, fiche_url_path, success = await get_pdfs_zip_api(
+    fiche, file_name, success = await get_pdfs_zip_api(
         eprel_id, eprel_category
     )
     if success:
         pdfs_path = Path(settings.pdfs_dir)
         if not os.path.exists(pdfs_path):
             os.makedirs(pdfs_path)
-        with open(
-            os.path.join(pdfs_path, fiche_url_path.split('/')[-1]), 'wb'
-        ) as f:
+        with open(pdfs_path / file_name, 'wb') as f:
             f.write(fiche)
         return True
     return False
