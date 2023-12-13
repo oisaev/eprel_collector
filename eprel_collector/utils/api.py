@@ -2,12 +2,7 @@ import asyncio
 
 import aiohttp
 
-from core.constants import (
-    EPREL_URL_API,
-    EPREL_URL_PDF,
-    EPREL_URL_SHORT,
-    X_API_KEY,
-)
+from core.constants import EPREL_URL_API, EPREL_URL_PDF, EPREL_URL_SHORT
 from core.logging import logger
 from core.settings import settings
 
@@ -48,7 +43,7 @@ async def get_dict_from_json_api(eprel_id, eprel_category):
             try:
                 async with session.get(
                     url=url_api,
-                    headers={'x-api-key': X_API_KEY},
+                    headers={'x-api-key': settings.x_api_key},
                     timeout=settings.http_timeout,
                 ) as response:
                     dict_from_json = await response.json()
@@ -75,7 +70,7 @@ async def get_pdfs_zip_api(eprel_id, eprel_category):
             try:
                 async with session.get(
                     url=url_pdf,
-                    headers={'x-api-key': X_API_KEY},
+                    headers={'x-api-key': settings.x_api_key},
                     timeout=settings.http_timeout,
                 ) as response:
                     file_name = response.url.path.split('/')[-1]

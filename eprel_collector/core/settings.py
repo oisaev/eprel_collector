@@ -21,6 +21,7 @@ class Settings(BaseSettings):
     re_read_attempts: int = 5
     pause_between_attempts: int = 4
     http_timeout: int = 30
+    x_api_key: str = '3PR31D3F4ULTU1K3Y2020'
 
 
 settings = Settings()

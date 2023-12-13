@@ -1,5 +1,3 @@
-X_API_KEY = '3PR31D3F4ULTU1K3Y2020'
-
 EPREL_URL_SHORT = 'https://eprel.ec.europa.eu/qr/{eprel_id}'
 
 EPREL_URL_LONG = (
